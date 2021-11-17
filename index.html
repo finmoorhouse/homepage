@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>New Page</title>
+    <!--<link rel="stylesheet" href="style.css" />-->
+    <style>
+      html {
+        background: #282c34;
+        color: #ffb7b7;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        padding-top: 12rem;
+        margin: 0;
+      }
+      h1,
+      h2,
+      h3 {
+        color: #f0f0f0;
+      }
+      a {
+        color: #ffb7b7;
+        margin-bottom: 20px;
+        text-decoration: none;
+      }
+      a:hover {
+        color: #ffffff;
+        text-decoration: underline;
+      }
+      * {
+        font-family: "Fira code", sans-serif;
+      }
+      #container {
+        margin: auto;
+        max-width: 400px;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        /* border: 1px solid pink; */
+      }
+
+      .column {
+        display: flex;
+        flex-direction: column;
+      }
+      ::selection {
+        background: #ffb7b7; /* WebKit/Blink Browsers */
+        color: #282c34;
+      }
+      ::-moz-selection {
+        background: #ffb7b7; /* Gecko Browsers */
+        color: #282c34;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div class="column">
+        <h3>Doing</h3>
+        <a href="https://todoist.com/app/today#">Todoist</a>
+        <a href="https://calendar.google.com/calendar/u/0/r">Calendar</a>
+        <a href="https://mail.google.com/mail/u/0/#inbox">Gmail</a>
+        <a
+          href="https://docs.google.com/document/d/1sU8UhzgTC8klsv9K6n-CE0ce0D9K5iLRd3B95FpteeE/edit#"
+          >Space</a
+        >
+      </div>
+      <div class="column">
+        <h3>Social</h3>
+        <a href="https://www.facebook.com/">Facebook</a>
+        <a href="https://twitter.com/home">Twitter</a>
+        <a href="https://www.reddit.com/">Reddit</a>
+        <a href="https://www.goodreads.com/">Goodreads</a>
+      </div>
+      <div class="column">
+        <h3>Docs</h3>
+        <a href="https://docs.google.com/document/u/0/">Docs</a>
+        <a href="https://docs.google.com/spreadsheets/u/0/">Sheets</a>
+        <a href="https://www.doc.new/">New Doc</a>
+        <a href="https://www.sheet.new/">New Sheet</a>
+      </div>
+    </div>
+  </body>
+</html>
