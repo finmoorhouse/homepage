@@ -16,6 +16,7 @@
       body {
         padding-top: 12rem;
         margin: 0;
+        text-align: center;
       }
       h1,
       h2,
@@ -46,6 +47,7 @@
       .column {
         display: flex;
         flex-direction: column;
+        text-align: left;
       }
       ::selection {
         background: #ffb7b7; /* WebKit/Blink Browsers */
@@ -55,9 +57,34 @@
         background: #ffb7b7; /* Gecko Browsers */
         color: #282c34;
       }
+      input {
+        background: #222222;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        padding: 10px;
+        border: 1px solid rgba(0,0,0,0);
+      }
+      input:focus{
+        outline: none;
+        border: 1px solid whitesmoke;
+      }
+      form{
+        margin-bottom: 10px;
+      }
     </style>
   </head>
   <body>
+    <form action="https://www.google.com/search" method="get">
+      <label for="q">Google</label>
+      <input type="text" id="q" name="q" autofocus>
+      <input type="submit" value="Search">
+    </form>
+    <form action="https://www.amazon.co.uk/s/" method="get">
+      <label for="k">Amazon</label>
+      <input type="text" id="k" name="k">
+      <input type="submit" value="Search">
+    </form>
     <div id="container">
       <div class="column">
         <h3>Doing</h3>
