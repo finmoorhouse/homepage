@@ -5,7 +5,12 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>New Page</title>
-    <!--<link rel="stylesheet" href="style.css" />-->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
     <style>
       html {
         background: #282c34;
@@ -38,6 +43,7 @@
       #container {
         margin: auto;
         max-width: 400px;
+        padding: 0 20px;
         display: flex;
         flex-direction: row;
         justify-content: space-between;
@@ -63,27 +69,43 @@
         border: none;
         border-radius: 3px;
         padding: 10px;
-        border: 1px solid rgba(0,0,0,0);
+        border: 1px solid rgba(0, 0, 0, 0);
       }
-      input:focus{
+      input:focus {
         outline: none;
         border: 1px solid whitesmoke;
       }
-      form{
+      form {
         margin-bottom: 10px;
+      }
+      @media all and (max-width: 380px) {
+        body{
+          padding-top: 4rem;
+        }
+        #container {
+          flex-direction: column;
+        }
+        .column{
+          text-align: center;
+        }
+        form *{
+          display: block;
+          margin: auto;
+          margin-top: 10px;
+        }
       }
     </style>
   </head>
   <body>
     <form action="https://www.google.com/search" method="get">
       <label for="q">Google</label>
-      <input type="text" id="q" name="q" autofocus>
-      <input type="submit" value="Search">
+      <input type="text" id="q" name="q" autofocus />
+      <input type="submit" value="Search" />
     </form>
     <form action="https://www.amazon.co.uk/s/" method="get">
       <label for="k">Amazon</label>
-      <input type="text" id="k" name="k">
-      <input type="submit" value="Search">
+      <input type="text" id="k" name="k" />
+      <input type="submit" value="Search" />
     </form>
     <div id="container">
       <div class="column">
