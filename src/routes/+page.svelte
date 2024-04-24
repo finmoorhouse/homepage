@@ -1,6 +1,7 @@
 <script>
 	let wordData = null;
 	let weatherData = null;
+	let quoteData = null;
 
 	async function getWeather() {
 		const city = 'Oxford';
@@ -11,6 +12,10 @@
 	async function getWord() {
 		const response = await fetch('/api/word');
 		wordData = await response.json();
+	}
+	async function getQuote() {
+		const response = await fetch('/api/quotes');
+		quoteData = await response.json();
 	}
 </script>
 
@@ -27,9 +32,23 @@
 		</ul>
 	{/if}
 </div>
+<div>
+	<button on:click={getQuote}>Get quote</button>
+	{#if quoteData}
+		<ul>
+			{#each quoteData as quoteData}
+				<li>
+					<p>
+						“{quoteData.quote}” — {quoteData.who}, <a href={quoteData.link}>{quoteData.source}</a>
+					</p>
+				</li>
+			{/each}
+		</ul>
+	{/if}
+</div>
 
 <div>
-	<button on:click={getWeather}>Get weather</button>
+	<button on:click={getWeather}>GetÍ weather</button>
 	{#if weatherData}
 		<h3>Weather in {weatherData.name}</h3>
 		<p>Temperature: {weatherData.main.temp}°C</p>
@@ -44,8 +63,9 @@
 
 	div {
 		margin: 20px;
+		padding:15px;
 		border-style: double;
-		min-height: 200px;
+		min-height: 60px;
 		max-width: 600px;
 	}
 </style>
