@@ -1,6 +1,15 @@
-import { json } from '@sveltejs/kit';
+import { supabase } from '$lib/supabaseClient';
 
-export function GET() {
-	const number = Math.floor(Math.random() * 6) + 1;
-	return json(number);
+export async function GET() {
+
+	const response = await supabase.rpc('random_words');
+	console.log('Supabase response:', response);
+	const data = response.data;
+	console.log('Supabase data:', data);
+	return new Response(JSON.stringify(data), {
+		status: 200,
+		headers: {
+			'Content-Type': 'application/json'
+		}
+	});
 }
