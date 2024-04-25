@@ -48,7 +48,7 @@
 </div>
 
 <div>
-	<button on:click={getWeather}>GetÍ weather</button>
+	<button on:click={getWeather}>Get weather</button>
 	{#if weatherData}
 		<h3>Weather in {weatherData.name}</h3>
 		<p>Temperature: {weatherData.main.temp}°C</p>
@@ -63,8 +63,8 @@
 
 	div {
 		margin: 20px;
-		padding:15px;
-		border-style: double;
+		padding: 15px;
+		border: 1px solid #222;
 		min-height: 60px;
 		max-width: 600px;
 	}
