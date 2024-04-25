@@ -1,0 +1,30 @@
+html,
+body {
+	font-family: 'Source Serif Pro', 'Apple Garamond', 'Baskerville', 'Libre Baskerville',
+		'Droid Serif', 'Times New Roman', 'Times', serif, 'Noto Emoji', 'Quivira';
+}
+a {
+	text-decoration: underline;
+	text-decoration-style: dotted;
+	color: black;
+}
+button {
+	background-color: white;
+	font-family: 'Source Serif Pro', 'Apple Garamond', 'Baskerville', 'Libre Baskerville',
+	'Droid Serif', 'Times New Roman', 'Times', serif, 'Noto Emoji', 'Quivira';
+	border: 1px solid black;
+	color: black;
+	padding: 10px 20px;
+	text-align: center;
+	text-decoration: none;
+	display: inline-block;
+	font-size: 16px;
+	margin: 4px 2px;
+	cursor: pointer;
+	border-radius: 0;
+}
+
+button:hover {
+	background-color: black;
+	color: white;
+}
