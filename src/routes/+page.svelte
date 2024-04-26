@@ -2,6 +2,7 @@
 	let wordData = null;
 	let weatherData = null;
 	let quoteData = null;
+	let factData = null;
 
 	async function getWeather() {
 		const city = 'Oxford';
@@ -17,10 +18,14 @@
 		const response = await fetch('/api/quotes');
 		quoteData = await response.json();
 	}
+	async function getFact() {
+		const response = await fetch('/api/fact');
+		factData = await response.json();
+	}
 </script>
 
 <h1>Homepage</h1>
-<span style="display:inline-flex; border:1px solid black;">
+<span>
 	<div>
 		<button on:click={getWord}>Get words</button>
 		{#if wordData}
@@ -47,6 +52,20 @@
 			</ul>
 		{/if}
 	</div>
+	<div>
+		<button on:click={getFact}>Get facts</button>
+		{#if factData}
+			<ul>
+				{#each factData as factData}
+					<li>
+						<p>
+							“{factData.fact}” — <a href={factData.link}>{factData.source}</a>
+						</p>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</div>
 
 	<div>
 		<button on:click={getWeather}>Get weather</button>
@@ -58,16 +77,3 @@
 	</div>
 </span>
 
-<style>
-	button {
-		margin: 10px;
-	}
-
-	div {
-		margin: 20px;
-		padding: 15px;
-		border: 1px solid #222;
-		min-height: 60px;
-		max-width: 600px;
-	}
-</style>

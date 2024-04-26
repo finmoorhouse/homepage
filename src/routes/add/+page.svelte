@@ -1,17 +1,13 @@
-<main>
-	<h1>Add a Word</h1>
-
+<div>
+	<h3>Add a Word</h3>
 	<form method="POST">
-		<label for="word">Word:</label>
+		<label for="word">Word</label>
 		<input type="text" id="word" name="word" />
 		<br />
-		<label for="definition">Definition:</label>
-		<input id="definition" name="description"/>
+		<label for="definition">Definition</label>
+		<input id="definition" name="description" />
+		<br />
 		<br />
 		<button type="submit">Submit</button>
 	</form>
-</main>
-
-<style>
-	/* Add your custom styles here */
-</style>
+</div>
