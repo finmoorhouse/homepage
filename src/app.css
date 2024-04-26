@@ -2,29 +2,48 @@ html,
 body {
 	font-family: 'Source Serif Pro', 'Apple Garamond', 'Baskerville', 'Libre Baskerville',
 		'Droid Serif', 'Times New Roman', 'Times', serif, 'Noto Emoji', 'Quivira';
+	background-color: #2a2932;
+	color: white;
 }
 a {
 	text-decoration: underline;
 	text-decoration-style: dotted;
-	color: black;
+	color: white;
 }
 button {
-	background-color: white;
+	background-color: #2a2932;
 	font-family: 'Source Serif Pro', 'Apple Garamond', 'Baskerville', 'Libre Baskerville',
-	'Droid Serif', 'Times New Roman', 'Times', serif, 'Noto Emoji', 'Quivira';
-	border: 1px solid black;
-	color: black;
+		'Droid Serif', 'Times New Roman', 'Times', serif, 'Noto Emoji', 'Quivira';
+	border: 1px solid white;
+	color: white;
 	padding: 10px 20px;
 	text-align: center;
 	text-decoration: none;
 	display: inline-block;
 	font-size: 16px;
-	margin: 4px 2px;
 	cursor: pointer;
 	border-radius: 0;
+	margin: 0;
 }
 
 button:hover {
-	background-color: black;
-	color: white;
+	background-color: white;
+	color: #2a2932;
+}
+
+div {
+	margin: 20px;
+	padding: 20px;
+	border: 1px solid white;
+	min-height: 40px;
+	max-width: 600px;
+	display: inline-block;
+}
+label {
+	display: block;
+	margin-top: 20px;
+}
+span {
+	display: inline-flex;
+	border: 1px solid white;
 }
