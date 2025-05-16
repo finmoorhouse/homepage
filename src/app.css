@@ -1,49 +1,106 @@
+@import 'tailwindcss';
+
+:root {
+	--black: rgb(16, 15, 15);
+	--white: rgb(255, 252, 240);
+	--bg-2: rgb(242, 240, 229);
+	--ui: rgb(230, 228, 217);
+	--ui-2: rgb(218, 216, 206);
+	--ui-3: rgb(206, 205, 195);
+	--tx-3: rgb(183, 181, 172);
+	--tx-2: rgb(111, 110, 105);
+	--re: rgb(175, 48, 41);
+	--gr: rgb(102, 128, 11);
+
+	--flexoki-orange-50: #FFE1D5;
+	--flexoki-orange-100: #FFCABB;
+	--flexoki-orange-150: #FDB2A2;
+	--flexoki-orange-200: #F89A8A;
+	--flexoki-orange-300: #E8705F;
+	--flexoki-orange-400: #D14D41;
+	--flexoki-orange-500: #C03E35;
+	--flexoki-orange-600: #AF3029;
+	--flexoki-orange-700: #942822;
+	--flexoki-orange-800: #6C201C;
+	--flexoki-orange-850: #551B18;
+	--flexoki-orange-900: #3E1715;
+	--flexoki-orange-950: #261312;
+
+	--flexoki-yellow-50: #FAEEC6;
+	--flexoki-yellow-100: #F6E2A0;
+	--flexoki-yellow-150: #F1D67E;
+	--flexoki-yellow-200: #ECCB60;
+	--flexoki-yellow-300: #DFB431;
+	--flexoki-yellow-400: #D0A215;
+	--flexoki-yellow-500: #BE9207;
+	--flexoki-yellow-600: #AD8301;
+	--flexoki-yellow-700: #8E6B01;
+	--flexoki-yellow-800: #664D01;
+	--flexoki-yellow-850: #503D02;
+	--flexoki-yellow-900: #3A2D04;
+	--flexoki-yellow-950: #241E08;
+}
+
+@theme {
+	--color-flexoki-white: var(--white);
+	--color-flexoki-black: var(--black);
+	--color-flexoki-bg-2: var(--bg-2);
+	--color-flexoki-ui: var(--ui);
+	--color-flexoki-ui-2: var(--ui-2);
+	--color-flexoki-ui-3: var(--ui-3);
+	--color-flexoki-tx-3: var(--tx-3);
+	--color-flexoki-tx-2: var(--tx-2);
+	--color-flexoki-re: var(--re);
+	--color-flexoki-gr: var(--gr);
+
+	--color-flexoki-orange-50: var(--flexoki-orange-50);
+	--color-flexoki-orange-100: var(--flexoki-orange-100);
+	--color-flexoki-orange-150: var(--flexoki-orange-150);
+	--color-flexoki-orange-200: var(--flexoki-orange-200);
+	--color-flexoki-orange-300: var(--flexoki-orange-300);
+	--color-flexoki-orange-400: var(--flexoki-orange-400);
+	--color-flexoki-orange-500: var(--flexoki-orange-500);
+	--color-flexoki-orange-600: var(--flexoki-orange-600);
+	--color-flexoki-orange-700: var(--flexoki-orange-700);
+	--color-flexoki-orange-800: var(--flexoki-orange-800);
+	--color-flexoki-orange-850: var(--flexoki-orange-850);
+	--color-flexoki-orange-900: var(--flexoki-orange-900);
+	--color-flexoki-orange-950: var(--flexoki-orange-950);
+
+	--color-flexoki-yellow-50: var(--flexoki-yellow-50);
+	--color-flexoki-yellow-100: var(--flexoki-yellow-100);
+	--color-flexoki-yellow-150: var(--flexoki-yellow-150);
+	--color-flexoki-yellow-200: var(--flexoki-yellow-200);
+	--color-flexoki-yellow-300: var(--flexoki-yellow-300);
+	--color-flexoki-yellow-400: var(--flexoki-yellow-400);
+	--color-flexoki-yellow-500: var(--flexoki-yellow-500);
+	--color-flexoki-yellow-600: var(--flexoki-yellow-600);
+	--color-flexoki-yellow-700: var(--flexoki-yellow-700);
+	--color-flexoki-yellow-800: var(--flexoki-yellow-800);
+	--color-flexoki-yellow-850: var(--flexoki-yellow-850);
+	--color-flexoki-yellow-900: var(--flexoki-yellow-900);
+	--color-flexoki-yellow-950: var(--flexoki-yellow-950);
+}
+
 html,
 body {
-	font-family: 'Source Serif Pro', 'Apple Garamond', 'Baskerville', 'Libre Baskerville',
-		'Droid Serif', 'Times New Roman', 'Times', serif, 'Noto Emoji', 'Quivira';
-	background-color: #2a2932;
-	color: white;
+	font-family: 'Source Serif 4', 'Spectral', 'Palatino', serif;
+	background-color: var(--white);
+	color: var(--black);
+	::selection {
+		background-color: var(--color-flexoki-ui);
+		color: var(--color-flexoki-black);
+	}
 }
 a {
 	text-decoration: underline;
 	text-decoration-style: dotted;
-	color: white;
-}
-button {
-	background-color: #2a2932;
-	font-family: 'Source Serif Pro', 'Apple Garamond', 'Baskerville', 'Libre Baskerville',
-		'Droid Serif', 'Times New Roman', 'Times', serif, 'Noto Emoji', 'Quivira';
-	border: 1px solid white;
-	color: white;
-	padding: 10px 20px;
-	text-align: center;
-	text-decoration: none;
-	display: inline-block;
-	font-size: 16px;
-	cursor: pointer;
-	border-radius: 0;
-	margin: 0;
 }
 
-button:hover {
-	background-color: white;
-	color: #2a2932;
-}
 
-div {
-	margin: 20px;
-	padding: 20px;
-	border: 1px solid white;
-	min-height: 40px;
-	max-width: 600px;
-	display: inline-block;
-}
+
 label {
 	display: block;
 	margin-top: 20px;
 }
-span {
-	display: inline-flex;
-	border: 1px solid white;
-}
+

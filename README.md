@@ -1,38 +1,78 @@
-# create-svelte
+# Homepage
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/main/packages/create-svelte).
+A personalized homepage built with SvelteKit that provides various useful information through API endpoints.
 
-## Creating a project
+## Features
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Word Definitions**: Look up word definitions
+- **Weather Information**: Get current weather data
+- **Random Facts**: Display interesting facts
+- **Quotes**: Show inspirational quotes
+- **Link Management**: Store and organize useful links
+
+## API Endpoints
+
+- `/api/definition` - Word definition service
+- `/api/fact` - Random fact generator
+- `/api/quotes` - Quote retrieval service
+- `/api/weather` - Weather information
+- `/api/word` - Word service
+
+## Technologies
+
+- [SvelteKit](https://kit.svelte.dev/) - Frontend framework
+- [Supabase](https://supabase.io/) - Backend database and authentication
+- [Axios](https://axios-http.com/) - HTTP client for API requests
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js (v18+)
+- npm
+
+### Installation
 
 ```bash
-# create a new project in the current directory
-npm create svelte@latest
+# Clone the repository
+git clone <repository-url>
+cd homepage
 
-# create a new project in my-app
-npm create svelte@latest my-app
+# Install dependencies
+npm install
 ```
 
-## Developing
+## Development
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Start the development server:
 
 ```bash
 npm run dev
 
-# or start the server and open the app in a new browser tab
+# Or open in a browser automatically
 npm run dev -- --open
 ```
 
-## Building
+## Building for Production
 
-To create a production version of your app:
+Create a production build:
 
 ```bash
 npm run build
 ```
 
-You can preview the production build with `npm run preview`.
+Preview the production build:
 
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+```bash
+npm run preview
+```
+
+## Contributing
+
+1. Create a new branch for your feature
+2. Make your changes
+3. Submit a pull request
+
+## License
+
+This project is privately licensed.

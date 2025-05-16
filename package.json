@@ -24,7 +24,8 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@supabase/supabase-js": "^2.42.5",
-		"axios": "^1.6.8"
+		"@tailwindcss/vite": "^4.1.6",
+		"axios": "^1.6.8",
+		"tailwindcss": "^4.1.6"
 	}
 }
