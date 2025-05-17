@@ -5,10 +5,18 @@
 	let quotationData = null;
 	let weatherData = null;
 	let newWord = '';
+	let newQuotation = '';
+	let newQuotationSource = '';
+	let newQuotationWho = '';
+	let newQuotationUrl = '';
 	let formError = null;
 	let formSuccessMessage = null;
 	let formSuccess = false;
 	let isSubmitting = false;
+	let quotationFormError = null;
+	let quotationFormSuccessMessage = null;
+	let quotationFormSuccess = false;
+	let isQuotationSubmitting = false;
 
 	async function getWeather() {
 		const city = 'Oxford';
@@ -31,7 +39,18 @@
 		{#if quotationData}
 			<div class="flex flex-col items-center">
 				<p class="text-lg italic mb-4 leading-relaxed max-w-2xl">{quotationData.quotation}</p>
-				<p class="text-sm text-flexoki-black-2 font-medium">— {quotationData.who}</p>
+				{#if quotationData.who}
+					<p class="text-sm text-flexoki-black-2 font-medium">
+						— {quotationData.who}
+						{#if quotationData.source}
+							{#if quotationData.url}
+								, <a href={quotationData.url}>{quotationData.source}</a>
+							{:else}
+								, {quotationData.source}
+							{/if}
+						{/if}
+					</p>
+				{/if}
 			</div>
 		{/if}
 		<button
@@ -135,6 +154,113 @@
 		<button
 			type="submit"
 			class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
+		>
+			Submit
+		</button>
+	</form>
+</div>
+
+<div class="fixed bottom-4 left-4 m-5 p-5 border border-flexoki-ui min-h-[40px] max-w-[600px] w-md">
+	<h3>Add a Quotation</h3>
+	<small
+		><a class="text-flexoki-tx-2" href="https://docs.google.com/spreadsheets/" target="_blank"
+			>Link to spreadsheet</a
+		></small
+	>
+	{#if isQuotationSubmitting}
+		<div class="bg-flexoki-bg-2 p-2 border border-flexoki-ui mt-2">
+			<span class="text-flexoki-tx-2 text-sm mt-2">Waiting for response...</span>
+		</div>
+	{:else if quotationFormError}
+		<div class="bg-flexoki-bg-2 p-2 border border-flexoki-ui mt-2">
+			<span class="text-flexoki-re text-sm mt-2">{quotationFormError}</span>
+		</div>
+	{:else if quotationFormSuccess}
+		<div class="bg-flexoki-bg-2 p-2 border border-flexoki-ui mt-2">
+			<span class="text-flexoki-gr text-sm mt-2">
+				Successfully added quotation: “<i
+					>{quotationFormSuccessMessage.quotation.split(' ').slice(0, 8).join(' ')}…” — {quotationFormSuccessMessage.who}</i
+				>
+			</span>
+		</div>
+	{/if}
+
+	<form
+		method="POST"
+		action="?/addQuotation"
+		class="flex flex-col gap-0"
+		use:enhance={() => {
+			console.log('Quotation form submission started');
+			isQuotationSubmitting = true;
+			return async ({ result }) => {
+				console.log('Quotation form submission completed:', result);
+				isQuotationSubmitting = false;
+				if (result.status === 200) {
+					console.log('Setting quotation success state');
+					quotationFormSuccess = true;
+					quotationFormSuccessMessage = result?.data || 'No quotation details given.';
+					quotationFormError = null;
+					newQuotation = '';
+					newQuotationWho = '';
+					newQuotationUrl = '';
+				} else if (result.data?.error) {
+					console.log('Setting quotation known error state');
+					quotationFormError = result.data.error;
+					quotationFormSuccess = false;
+				} else {
+					console.log('Setting quotation unknown error state');
+					quotationFormError = 'An unexpected error occurred';
+					quotationFormSuccess = false;
+				}
+			};
+		}}
+	>
+		<label for="quotation" class="text-md font-medium">Quotation</label>
+		<textarea
+			id="quotation"
+			name="quotation"
+			bind:value={newQuotation}
+			required
+			class="px-4 py-2 border border-flexoki-ui focus:outline-none focus:border-b-1 focus:border-b-flexoki-black"
+			rows="3"
+		></textarea>
+
+		<label for="who" class="text-md font-medium"
+			>Who <span class="text-flexoki-tx-3">(optional)</span></label
+		>
+		<input
+			type="text"
+			id="who"
+			name="who"
+			bind:value={newQuotationWho}
+			class="px-4 py-2 border border-flexoki-ui focus:outline-none focus:border-b-1 focus:border-b-flexoki-black"
+		/>
+
+		<label for="source" class="text-md font-medium"
+			>Source <span class="text-flexoki-tx-3">(optional)</span></label
+		>
+		<input
+			type="text"
+			id="source"
+			name="source"
+			bind:value={newQuotationSource}
+			class="px-4 py-2 border border-flexoki-ui focus:outline-none focus:border-b-1 focus:border-b-flexoki-black"
+		/>
+
+		<label for="url" class="text-md font-medium my-0"
+			>URL <span class="text-flexoki-tx-3">(optional)</span></label
+		>
+		<input
+			type="url"
+			id="url"
+			name="url"
+			bind:value={newQuotationUrl}
+			class="px-4 py-2 border border-flexoki-ui focus:outline-none focus:border-b-1 focus:border-b-flexoki-black"
+		/>
+
+		<button
+			type="submit"
+			class="mt-4 px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
 		>
 			Submit
 		</button>
