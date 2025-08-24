@@ -1,3 +1,7 @@
+<svelte:head>
+	<title>Fin's Homepage</title>
+</svelte:head>
+
 <script>
 	import { enhance } from '$app/forms';
 
@@ -22,6 +26,7 @@
 	let quotationFormSuccessMessage = null;
 	let quotationFormSuccess = false;
 	let isQuotationSubmitting = false;
+	let tasksData = null;
 
 	async function getWeather() {
 		const city = 'Oxford';
@@ -36,10 +41,27 @@
 		const response = await fetch('/api/quotation');
 		quotationData = await response.json();
 	}
+	async function getTasks() {
+		const response = await fetch('/api/tasks');
+		const data = await response.json();
+		if (data.success) {
+			// Split tasks into today and overdue
+			const today = new Date().toISOString().split('T')[0];
+			tasksData = {
+				today: data.tasks.filter(task => task.due && task.due.date === today),
+				overdue: data.tasks.filter(task => task.due && task.due.date < today)
+			};
+		}
+	}
+
+	// Function to convert markdown links to HTML
+	function parseMarkdownLinks(text) {
+		return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-flexoki-tx-2 underline hover:text-flexoki-black">$1</a>');
+	}
 </script>
 
 <div class="m-5 p-2 border-b border-flexoki-ui min-h-[40px]">
-	<h1 class="text-2xl m-0 p-0">Homepage</h1>
+	<h1 class="text-2xl m-0 p-0">Fin's Homepage</h1>
 </div>
 
 <span class="flex justify-center w-full">
@@ -66,6 +88,62 @@
 			class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
 			on:click={getQuotation}>Get new quotation</button
 		>
+	</div>
+</span>
+
+<span class="flex justify-center w-full">
+	<div class="m-5 p-5 border border-flexoki-ui min-h-[40px] inline w-2xl">
+		<!-- Today's Tasks Section -->
+		{#if tasksData && tasksData.today && tasksData.today.length > 0}
+			<h3 class="text-lg font-medium mb-4">Today's Tasks</h3>
+			<div class="space-y-2 mb-6">
+				{#each tasksData.today as task}
+					<div class="flex items-center gap-2">
+						<span class="w-2 h-2 border border-flexoki-ui rounded-full {task.priority === 4 ? 'bg-flexoki-re' : task.priority === 3 ? 'bg-flexoki-or' : ''}"></span>
+						<div class="flex flex-col">
+							<span class="text-flexoki-tx-2">{@html parseMarkdownLinks(task.content)}</span>
+							{#if task.due}
+								<span class="text-xs text-flexoki-tx-3">Due: {task.due.string}</span>
+							{/if}
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+		<!-- Overdue Tasks Section -->
+		{#if tasksData && tasksData.overdue && tasksData.overdue.length > 0}
+			<h3 class="text-lg font-medium mb-4">Overdue</h3>
+			<div class="space-y-2 mb-6">
+				{#each tasksData.overdue as task}
+					<div class="flex items-center gap-2">
+						<span class="w-2 h-2 border border-flexoki-ui rounded-full {task.priority === 4 ? 'bg-flexoki-re' : task.priority === 3 ? 'bg-flexoki-or' : ''}"></span>
+						<div class="flex flex-col">
+							<span class="text-flexoki-tx-2">{@html parseMarkdownLinks(task.content)}</span>
+							{#if task.due}
+								<span class="text-xs text-flexoki-tx-3">Due: {task.due.string}</span>
+							{/if}
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+
+		<!-- No tasks message -->
+		{#if !tasksData || (!tasksData.today?.length && !tasksData.overdue?.length)}
+			<h3 class="text-lg font-medium mb-4">Tasks</h3>
+			<div class="space-y-2 mb-6">
+				<div class="flex items-center gap-2">
+					<span class="w-2 h-2 border border-flexoki-ui rounded-full"></span>
+					<span class="text-flexoki-tx-2">No tasks loaded</span>
+				</div>
+			</div>
+		{/if}
+
+		<hr class="my-6 border-flexoki-ui" />
+		<button
+			class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
+			on:click={getTasks}>Refresh tasks</button>
 	</div>
 </span>
 
