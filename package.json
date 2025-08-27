@@ -7,7 +7,8 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"lint": "prettier --check . && eslint .",
-		"format": "prettier --write ."
+		"format": "prettier --write .",
+		"postinstall": "npm rebuild better-sqlite3"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^3.0.0",
@@ -27,6 +28,7 @@
 		"@doist/todoist-api-typescript": "^5.1.2",
 		"@tailwindcss/vite": "^4.1.6",
 		"axios": "^1.6.8",
+		"better-sqlite3": "^12.2.0",
 		"tailwindcss": "^4.1.6"
 	}
 }

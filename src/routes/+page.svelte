@@ -4,15 +4,10 @@
 
 <script>
 	import { enhance } from '$app/forms';
+	import { onMount } from 'svelte';
 
 	let wordData = null;
-	let quotationData = {
-		quotation: "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
-		who: "Alan Kay",
-		source: "PARC Meeting",
-		url: "https://www.brainyquote.com/quotes/alan_kay_181225"
-	};
-	let weatherData = null;
+	let quotationData = null;
 	let newWord = '';
 	let newQuotation = '';
 	let newQuotationSource = '';
@@ -27,12 +22,9 @@
 	let quotationFormSuccess = false;
 	let isQuotationSubmitting = false;
 	let tasksData = null;
+	let isSyncingQuotations = false;
+	let syncMessage = null;
 
-	async function getWeather() {
-		const city = 'Oxford';
-		const response = await fetch(`/api/weather?city=${city}`);
-		weatherData = await response.json();
-	}
 	async function getWord() {
 		const response = await fetch('/api/word');
 		wordData = await response.json();
@@ -53,11 +45,50 @@
 			};
 		}
 	}
+	
+	async function syncQuotations() {
+		isSyncingQuotations = true;
+		syncMessage = null;
+		try {
+			const response = await fetch('/api/sync', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ table: 'quotations' }),
+			});
+			
+			const result = await response.json();
+			
+			if (result.success) {
+				const { synced, inserted, updated } = result;
+				if (inserted && updated) {
+					syncMessage = `Synced ${synced} quotations (${inserted} new, ${updated} updated)`;
+				} else {
+					syncMessage = `Synced ${synced} quotations successfully`;
+				}
+				// Optionally refresh the current quotation
+				await getQuotation();
+			} else {
+				syncMessage = `Sync failed: ${result.error}`;
+			}
+		} catch (error) {
+			syncMessage = `Sync failed: ${error.message}`;
+		} finally {
+			isSyncingQuotations = false;
+		}
+	}
 
 	// Function to convert markdown links to HTML
 	function parseMarkdownLinks(text) {
 		return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-flexoki-tx-2 underline hover:text-flexoki-black">$1</a>');
 	}
+
+	// Load initial data when page mounts
+	onMount(async () => {
+		// Load a quotation on page load
+		await getQuotation();
+	});
 </script>
 
 <div class="m-5 p-2 border-b border-flexoki-ui min-h-[40px]">
@@ -82,12 +113,32 @@
 					</p>
 				{/if}
 			</div>
+		{:else}
+			<div class="flex flex-col">
+				<p class="text-lg mb-8 leading-relaxed max-w-2xl text-left text-flexoki-tx-2">Loading quotation...</p>
+			</div>
 		{/if}
 		<hr class="my-6 border-flexoki-ui" />
-		<button
-			class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
-			on:click={getQuotation}>Get new quotation</button
-		>
+		
+		{#if syncMessage}
+			<div class="mb-4 p-2 border border-flexoki-ui bg-flexoki-bg-2">
+				<span class="text-sm {syncMessage.includes('successfully') ? 'text-flexoki-gr' : 'text-flexoki-re'}">{syncMessage}</span>
+			</div>
+		{/if}
+		
+		<div class="flex gap-2">
+			<button
+				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
+				on:click={getQuotation}>Get new quotation</button
+			>
+			<button
+				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer {isSyncingQuotations ? 'opacity-50' : ''}"
+				on:click={syncQuotations}
+				disabled={isSyncingQuotations}
+			>
+				{isSyncingQuotations ? 'Syncing...' : 'Sync quotations'}
+			</button>
+		</div>
 	</div>
 </span>
 
@@ -162,17 +213,6 @@
 		{/if}
 	</div>
 
-	<div class="m-5 p-5 border border-flexoki-ui min-h-[40px] max-w-[600px] inline-block">
-		<button
-			class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
-			on:click={getWeather}>Get weather</button
-		>
-		{#if weatherData}
-			<h3>Weather in {weatherData.name}</h3>
-			<p>Temperature: {weatherData.main.temp}°C</p>
-			<p>Description: {weatherData.weather[0].description}</p>
-		{/if}
-	</div>
 </span>
 
 <div class="flex justify-center w-full flex-col md:flex-row">
@@ -290,6 +330,9 @@
 						newQuotation = '';
 						newQuotationWho = '';
 						newQuotationUrl = '';
+						
+						// Clear sync message and suggest syncing
+						syncMessage = 'Quotation added to Google Sheets. Click "Sync quotations" to see it locally.';
 					} else if (result.data?.error) {
 						console.log('Setting quotation known error state');
 						quotationFormError = result.data.error;
