@@ -23,7 +23,11 @@
 	let isQuotationSubmitting = false;
 	let tasksData = null;
 	let isSyncingQuotations = false;
+	let isSyncingWords = false;
+	let isRefreshingTasks = false;
 	let syncMessage = null;
+	let wordSyncMessage = null;
+	let taskRefreshMessage = null;
 
 	async function getWord() {
 		const response = await fetch('/api/word');
@@ -33,16 +37,42 @@
 		const response = await fetch('/api/quotation');
 		quotationData = await response.json();
 	}
-	async function getTasks() {
-		const response = await fetch('/api/tasks');
-		const data = await response.json();
-		if (data.success) {
-			// Split tasks into today and overdue
-			const today = new Date().toISOString().split('T')[0];
-			tasksData = {
-				today: data.tasks.filter(task => task.due && task.due.date === today),
-				overdue: data.tasks.filter(task => task.due && task.due.date < today)
-			};
+	async function getTasks(forceRefresh = false) {
+		if (forceRefresh) {
+			isRefreshingTasks = true;
+			taskRefreshMessage = null;
+		}
+		
+		try {
+			const url = forceRefresh ? '/api/tasks?refresh=true' : '/api/tasks';
+			const response = await fetch(url);
+			const data = await response.json();
+			
+			if (data.success) {
+				// Split tasks into today and overdue
+				const today = new Date().toISOString().split('T')[0];
+				tasksData = {
+					today: data.tasks.filter(task => task.due && task.due.date === today),
+					overdue: data.tasks.filter(task => task.due && task.due.date < today)
+				};
+				
+				if (forceRefresh) {
+					const totalTasks = data.tasks.length;
+					taskRefreshMessage = `Refreshed ${totalTasks} tasks successfully`;
+				}
+			} else {
+				if (forceRefresh) {
+					taskRefreshMessage = `Refresh failed: ${data.error}`;
+				}
+			}
+		} catch (error) {
+			if (forceRefresh) {
+				taskRefreshMessage = `Refresh failed: ${error.message}`;
+			}
+		} finally {
+			if (forceRefresh) {
+				isRefreshingTasks = false;
+			}
 		}
 	}
 	
@@ -79,6 +109,39 @@
 		}
 	}
 
+	async function syncWords() {
+		isSyncingWords = true;
+		wordSyncMessage = null;
+		try {
+			const response = await fetch('/api/sync', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ table: 'words' }),
+			});
+			
+			const result = await response.json();
+			
+			if (result.success) {
+				const { synced, inserted, updated } = result;
+				if (inserted && updated) {
+					wordSyncMessage = `Synced ${synced} words (${inserted} new, ${updated} updated)`;
+				} else {
+					wordSyncMessage = `Synced ${synced} words successfully`;
+				}
+				// Optionally refresh the current word
+				await getWord();
+			} else {
+				wordSyncMessage = `Sync failed: ${result.error}`;
+			}
+		} catch (error) {
+			wordSyncMessage = `Sync failed: ${error.message}`;
+		} finally {
+			isSyncingWords = false;
+		}
+	}
+
 	// Function to convert markdown links to HTML
 	function parseMarkdownLinks(text) {
 		return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-flexoki-tx-2 underline hover:text-flexoki-black">$1</a>');
@@ -86,8 +149,10 @@
 
 	// Load initial data when page mounts
 	onMount(async () => {
-		// Load a quotation on page load
+		// Load a quotation, word, and tasks on page load
 		await getQuotation();
+		await getWord();
+		await getTasks(); // This will load from cache if available
 	});
 </script>
 
@@ -146,16 +211,24 @@
 	<div class="m-5 p-5 border border-flexoki-ui min-h-[40px] inline w-2xl">
 		<!-- Today's Tasks Section -->
 		{#if tasksData && tasksData.today && tasksData.today.length > 0}
-			<h3 class="text-lg font-medium mb-4">Today's Tasks</h3>
+			<h3 class="text-lg font-medium mb-4">Today's tasks</h3>
 			<div class="space-y-2 mb-6">
 				{#each tasksData.today as task}
 					<div class="flex items-center gap-2">
 						<span class="w-2 h-2 border border-flexoki-ui rounded-full {task.priority === 4 ? 'bg-flexoki-re' : task.priority === 3 ? 'bg-flexoki-or' : ''}"></span>
 						<div class="flex flex-col">
 							<span class="text-flexoki-tx-2">{@html parseMarkdownLinks(task.content)}</span>
-							{#if task.due}
-								<span class="text-xs text-flexoki-tx-3">Due: {task.due.string}</span>
-							{/if}
+							<div class="text-xs text-flexoki-tx-3 flex gap-1 items-center">
+								{#if task.due}
+									<span>Due: {task.due.string}</span>
+								{/if}
+								{#if task.due && task.url}
+									<span>/</span>
+								{/if}
+								{#if task.url}
+									<a href={task.url} target="_blank" class="underline hover:text-flexoki-tx-2">Link</a>
+								{/if}
+							</div>
 						</div>
 					</div>
 				{/each}
@@ -164,16 +237,24 @@
 
 		<!-- Overdue Tasks Section -->
 		{#if tasksData && tasksData.overdue && tasksData.overdue.length > 0}
-			<h3 class="text-lg font-medium mb-4">Overdue</h3>
+			<h3 class="text-lg font-medium mb-4">Overdue tasks</h3>
 			<div class="space-y-2 mb-6">
 				{#each tasksData.overdue as task}
 					<div class="flex items-center gap-2">
 						<span class="w-2 h-2 border border-flexoki-ui rounded-full {task.priority === 4 ? 'bg-flexoki-re' : task.priority === 3 ? 'bg-flexoki-or' : ''}"></span>
 						<div class="flex flex-col">
 							<span class="text-flexoki-tx-2">{@html parseMarkdownLinks(task.content)}</span>
-							{#if task.due}
-								<span class="text-xs text-flexoki-tx-3">Due: {task.due.string}</span>
-							{/if}
+							<div class="text-xs text-flexoki-tx-3 flex gap-1 items-center">
+								{#if task.due}
+									<span>Due: {task.due.string}</span>
+								{/if}
+								{#if task.due && task.url}
+									<span>•</span>
+								{/if}
+								{#if task.url}
+									<a href={task.url} target="_blank" class="underline hover:text-flexoki-tx-2">Link</a>
+								{/if}
+							</div>
 						</div>
 					</div>
 				{/each}
@@ -192,25 +273,60 @@
 		{/if}
 
 		<hr class="my-6 border-flexoki-ui" />
+		
+		{#if taskRefreshMessage}
+			<div class="mb-4 p-2 border border-flexoki-ui bg-flexoki-bg-2">
+				<span class="text-sm {taskRefreshMessage.includes('Refresh failed') ? 'text-flexoki-re' : 'text-flexoki-gr'}">{taskRefreshMessage}</span>
+			</div>
+		{/if}
+		
 		<button
-			class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
-			on:click={getTasks}>Refresh tasks</button>
+			class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer {isRefreshingTasks ? 'opacity-50' : ''}"
+			on:click={() => getTasks(true)}
+			disabled={isRefreshingTasks}
+		>
+			{isRefreshingTasks ? 'Syncing...' : 'Sync tasks'}
+		</button>
 	</div>
 </span>
 
 <span class="flex justify-center w-full">
-	<div class="m-5 p-5 border border-flexoki-ui min-h-[40px] max-w-[600px] inline-block">
-		<button
-			class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
-			on:click={getWord}>Get words</button
-		>
+	<div class="m-5 p-5 border border-flexoki-ui min-h-[40px] inline w-2xl">
 		{#if wordData}
-			<ul>
-				<li>
-					<p><b>{wordData.word}</b>: {wordData.definition}</p>
-				</li>
-			</ul>
+			<div class="mb-4">
+				{#if Array.isArray(wordData)}
+					<ul class="list-disc list-inside space-y-1">
+						{#each wordData as word}
+							<li class="text-flexoki-tx-2"><b>{word.word}</b>: {word.definition}</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="text-flexoki-tx-2"><b>{wordData.word}</b>: {wordData.definition}</p>
+				{/if}
+			</div>
 		{/if}
+		
+		<hr class="my-6 border-flexoki-ui" />
+		
+		{#if wordSyncMessage}
+			<div class="mb-4 p-2 border border-flexoki-ui bg-flexoki-bg-2">
+				<span class="text-sm {wordSyncMessage.includes('Sync failed') ? 'text-flexoki-re' : 'text-flexoki-gr'}">{wordSyncMessage}</span>
+			</div>
+		{/if}
+		
+		<div class="flex gap-2">
+			<button
+				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
+				on:click={getWord}>Get new words</button
+			>
+			<button
+				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer {isSyncingWords ? 'opacity-50' : ''}"
+				on:click={syncWords}
+				disabled={isSyncingWords}
+			>
+				{isSyncingWords ? 'Syncing...' : 'Sync words'}
+			</button>
+		</div>
 	</div>
 
 </span>

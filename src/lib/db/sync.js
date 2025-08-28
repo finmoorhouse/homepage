@@ -1,4 +1,5 @@
 import { bulkInsertQuotations, clearAllQuotations, getQuotationCount, bulkUpsertQuotations } from './quotations.js';
+import { bulkInsertWords, clearAllWords, getWordCount, bulkUpsertWords } from './words.js';
 import { getDatabase } from './index.js';
 
 export async function syncQuotationsFromGoogleSheets(apiUrl) {
@@ -70,6 +71,81 @@ export async function syncQuotationsFromGoogleSheets(apiUrl) {
 		
 	} catch (error) {
 		console.error('Error syncing quotations:', error);
+		return {
+			success: false,
+			error: error.message
+		};
+	}
+}
+
+export async function syncWordsFromGoogleSheets(apiUrl) {
+	try {
+		console.log('Starting words sync from Google Sheets...');
+		
+		// Fetch ALL words using the new getAll parameter
+		const syncUrl = `${apiUrl}${apiUrl.includes('?') ? '&' : '?'}all=true`;
+		console.log('Fetching all words from:', syncUrl);
+		
+		const response = await fetch(syncUrl);
+		
+		if (!response.ok) {
+			throw new Error(`Failed to fetch words: ${response.statusText}`);
+		}
+		
+		const data = await response.json();
+		console.log('Received data from Google Sheets:', data);
+		
+		// Handle error response from Google Apps Script
+		if (data.error) {
+			throw new Error(`Google Sheets API error: ${data.message || data.error}`);
+		}
+		
+		let words = [];
+		
+		if (Array.isArray(data)) {
+			// Direct array of words
+			words = data;
+		} else {
+			console.warn('Expected array of words, got:', data);
+			return { success: false, error: 'Expected array of words from sync endpoint' };
+		}
+		
+		if (words.length === 0) {
+			console.warn('No words returned from Google Sheets');
+			return { success: false, error: 'No words found in Google Sheets' };
+		}
+		
+		// Perform differential sync - only update what's changed
+		const db = getDatabase();
+		
+		// Convert words to the expected format
+		const formattedWords = words.map(w => ({
+			word: w.word,
+			definition: w.definition
+		}));
+		
+		// Use upsert to insert new or update existing words
+		const syncResult = bulkUpsertWords(formattedWords);
+		
+		// Update sync metadata
+		const stmt = db.prepare(`
+			INSERT OR REPLACE INTO sync_metadata (table_name, last_sync, record_count)
+			VALUES (?, CURRENT_TIMESTAMP, ?)
+		`);
+		stmt.run('words', getWordCount());
+		
+		console.log(`Successfully synced ${words.length} words (${syncResult.inserted} new, ${syncResult.updated} updated)`);
+		
+		return {
+			success: true,
+			synced: words.length,
+			inserted: syncResult.inserted,
+			updated: syncResult.updated,
+			timestamp: new Date().toISOString()
+		};
+		
+	} catch (error) {
+		console.error('Error syncing words:', error);
 		return {
 			success: false,
 			error: error.message

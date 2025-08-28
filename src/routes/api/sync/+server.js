@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { syncQuotationsFromGoogleSheets, getLastSyncInfo } from '$lib/db/sync.js';
-import { QUOTATION_API_URL } from '$env/static/private';
+import { syncQuotationsFromGoogleSheets, syncWordsFromGoogleSheets, getLastSyncInfo } from '$lib/db/sync.js';
+import { QUOTATION_API_URL, WORD_API_URL } from '$env/static/private';
 
 export async function POST({ request }) {
 	try {
@@ -12,8 +12,12 @@ export async function POST({ request }) {
 		
 		switch (table) {
 			case 'quotations':
-				const result = await syncQuotationsFromGoogleSheets(QUOTATION_API_URL);
-				return json(result, { status: result.success ? 200 : 500 });
+				const quotationsResult = await syncQuotationsFromGoogleSheets(QUOTATION_API_URL);
+				return json(quotationsResult, { status: quotationsResult.success ? 200 : 500 });
+				
+			case 'words':
+				const wordsResult = await syncWordsFromGoogleSheets(WORD_API_URL);
+				return json(wordsResult, { status: wordsResult.success ? 200 : 500 });
 			
 			default:
 				return json({ error: `Sync not implemented for table: ${table}` }, { status: 400 });

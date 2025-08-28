@@ -14,16 +14,17 @@
 }
 
 .dark {
-	--black: rgb(255, 252, 240);
-	--white: rgb(16, 15, 15);
-	--bg-2: rgb(28, 27, 26);
-	--ui: rgb(40, 38, 37);
-	--ui-2: rgb(52, 50, 48);
-	--ui-3: rgb(64, 61, 59);
-	--tx-3: rgb(87, 85, 81);
-	--tx-2: rgb(152, 150, 145);
-	--re: rgb(205, 78, 71);
-	--gr: rgb(132, 158, 41);
+	/* Gruvbox-inspired dark theme with high contrast */
+	--black: rgb(235, 219, 178); /* light cream text */
+	--white: rgb(29, 32, 33);    /* dark background */
+	--bg-2: rgb(40, 40, 40);     /* slightly lighter dark */
+	--ui: rgb(60, 56, 54);       /* border color */
+	--ui-2: rgb(80, 73, 69);     /* hover border */
+	--ui-3: rgb(102, 92, 84);    /* active border */
+	--tx-3: rgb(146, 131, 116);  /* muted text */
+	--tx-2: rgb(189, 174, 147);  /* secondary text */
+	--re: rgb(251, 73, 52);      /* bright red */
+	--gr: rgb(184, 187, 38);     /* bright green */
 
 	--flexoki-orange-50: #FFE1D5;
 	--flexoki-orange-100: #FFCABB;

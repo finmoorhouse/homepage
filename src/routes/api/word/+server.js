@@ -1,11 +1,49 @@
 import { WORD_API_URL } from '$env/static/private';
+import { json } from '@sveltejs/kit';
+import { getRandomWord, getRandomWords, getWordCount, insertWord } from '$lib/db/words.js';
+import { syncWordsFromGoogleSheets, getLastSyncInfo } from '$lib/db/sync.js';
 
 const API_URL = WORD_API_URL;
 
-import { json } from '@sveltejs/kit';
 /** @type {import('./$types').RequestHandler} */
 
 export async function GET() {
+	try {
+		// Check if we have words in local cache
+		const wordCount = getWordCount();
+		
+		if (wordCount === 0) {
+			// No words in cache, try to sync from Google Sheets first
+			console.log('No words in local cache, syncing from Google Sheets...');
+			const syncResult = await syncWordsFromGoogleSheets(API_URL);
+			
+			if (!syncResult.success) {
+				console.error('Failed to sync words:', syncResult.error);
+				// Fall back to direct API call
+				return await fetchWordFromAPI();
+			}
+		}
+		
+		// Get 3 random words from local cache
+		const randomWords = getRandomWords(3);
+		
+		if (!randomWords || randomWords.length === 0) {
+			// No words in cache even after sync attempt, fall back to API
+			console.log('No words available in cache, falling back to API...');
+			return await fetchWordFromAPI();
+		}
+		
+		// Return cached words
+		return json(randomWords);
+		
+	} catch (error) {
+		console.error('Error in word API:', error);
+		// Fall back to direct API call
+		return await fetchWordFromAPI();
+	}
+}
+
+async function fetchWordFromAPI() {
 	try {
 		// Fetch data from your Google Apps Script
 		const response = await fetch(API_URL);
@@ -22,7 +60,7 @@ export async function GET() {
 		// Return the data as JSON
 		return json(data);
 	} catch (error) {
-		console.error('Error in word API:', error);
+		console.error('Error fetching from API:', error);
 		return json({ error: 'Internal server error' }, { status: 500 });
 	}
 }
@@ -83,6 +121,17 @@ export async function POST(request) {
 					headers: { 'Content-Type': 'application/json' }
 				}
 			);
+		}
+
+		// Add word to local cache if it was successfully added
+		if (result.success && result.isNew && result.definition) {
+			try {
+				insertWord(result.word, result.definition);
+				console.log('Added word to local cache:', result.word);
+			} catch (cacheError) {
+				console.error('Failed to add word to local cache:', cacheError);
+				// Don't fail the request, just log the error
+			}
 		}
 
 		// Return success response with the word and definition

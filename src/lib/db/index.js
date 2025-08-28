@@ -49,14 +49,17 @@ function initializeSchema() {
 		)
 	`);
 	
-	// Todoist tasks table (for future use)
+	// Todoist tasks table
 	db.exec(`
 		CREATE TABLE IF NOT EXISTS todoist_tasks (
 			id TEXT PRIMARY KEY,
 			content TEXT NOT NULL,
-			due_date TEXT,
-			project TEXT,
 			completed BOOLEAN DEFAULT 0,
+			priority INTEGER DEFAULT 1,
+			url TEXT,
+			due_date TEXT,
+			due_string TEXT,
+			project TEXT,
 			synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP

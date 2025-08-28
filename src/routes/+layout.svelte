@@ -4,7 +4,7 @@
 </script>
 
 <div class="min-h-screen">
-	<div class="fixed top-4 right-4 z-10">
+	<div class="fixed bottom-4 left-4 z-10">
 		<DarkModeToggle />
 	</div>
 	<slot />
