@@ -93,7 +93,7 @@ export async function syncWordsFromGoogleSheets(apiUrl) {
 		}
 		
 		const data = await response.json();
-		console.log('Received data from Google Sheets:', data);
+		console.log('Received data from Google Sheets:', data.length, 'words, first word:', data[0]?.word || 'none');
 		
 		// Handle error response from Google Apps Script
 		if (data.error) {

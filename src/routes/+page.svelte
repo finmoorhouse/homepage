@@ -5,7 +5,7 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
-	import { getCachedWords, cacheWords, getCacheInfo } from '$lib/cache/words.js';
+	import { getCachedWords, cacheWords, getCacheInfo, getCachedTasks, cacheTasks, getTasksCacheInfo, getCachedRandomQuotation, cacheQuotations, getQuotationsCacheInfo } from '$lib/cache/words.js';
 
 	let wordData = null;
 	let quotationData = null;
@@ -102,47 +102,202 @@
 			wordData = null;
 		}
 	}
+
+	async function cacheAllWordsFromServer() {
+		try {
+			console.log('🗄️ Fetching ALL words from SQLite server cache for IndexedDB...');
+			const response = await fetch('/api/words-all');
+			const serverData = await response.json();
+			
+			if (serverData.words && serverData.words.length > 0) {
+				console.log('✅ Received', serverData.words.length, 'words from server, caching ALL to IndexedDB');
+				await cacheWords(serverData.words);
+				console.log('💾 Successfully cached', serverData.words.length, 'words to IndexedDB');
+			} else {
+				console.log('⚠️ No words available for bulk caching');
+			}
+		} catch (error) {
+			console.error('❌ Error fetching all words for caching:', error);
+		}
+	}
 	async function getQuotation() {
-		const response = await fetch('/api/quotation');
-		quotationData = await response.json();
+		try {
+			// First try to load from IndexedDB cache
+			const cachedQuotation = await getCachedRandomQuotation();
+			
+			if (cachedQuotation) {
+				console.log('📱 Quotation loaded from IndexedDB cache');
+				// Show cached data immediately
+				quotationData = cachedQuotation;
+				
+				// Check if we should refresh from server
+				const cacheInfo = await getQuotationsCacheInfo();
+				const cacheAge = cacheInfo.lastCached ? Date.now() - new Date(cacheInfo.lastCached).getTime() : Infinity;
+				const shouldRefresh = cacheAge > 24 * 60 * 60 * 1000; // Refresh if cache is older than 1 day
+				
+				if (shouldRefresh) {
+					console.log('🔄 Quotations cache is stale (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), refreshing in background...');
+					// Fetch fresh data in background and update cache
+					try {
+						await getQuotationFromServer();
+					} catch (bgError) {
+						console.log('❌ Background quotation refresh failed:', bgError);
+						// Keep showing cached data
+					}
+				} else {
+					console.log('✅ Quotations cache is fresh (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), no refresh needed');
+				}
+			} else {
+				console.log('💾 No cached quotations found, fetching from server...');
+				// No cache, fetch from server
+				await getQuotationFromServer();
+			}
+		} catch (error) {
+			console.error('❌ Error loading quotation:', error);
+			// Fall back to server
+			await getQuotationFromServer();
+		}
+	}
+
+	async function getQuotationFromServer() {
+		try {
+			console.log('🗄️ Fetching quotation from SQLite server cache...');
+			const response = await fetch('/api/quotations-cached');
+			const serverData = await response.json();
+			
+			if (serverData.quotation) {
+				console.log('✅ Received quotation from server');
+				quotationData = {
+					quotation: serverData.quotation,
+					who: serverData.who,
+					source: serverData.source
+				};
+			} else {
+				console.log('⚠️ No quotations from server cache, falling back to original API...');
+				// Fall back to original API
+				const fallbackResponse = await fetch('/api/quotation');
+				quotationData = await fallbackResponse.json();
+				console.log('📡 Received quotation from original API');
+			}
+		} catch (error) {
+			console.error('❌ Error fetching quotation from server:', error);
+			quotationData = null;
+		}
+	}
+
+	async function cacheAllQuotationsFromServer() {
+		try {
+			console.log('🗄️ Fetching ALL quotations from SQLite server cache for IndexedDB...');
+			const response = await fetch('/api/quotations-all');
+			const serverData = await response.json();
+			
+			if (serverData.quotations && serverData.quotations.length > 0) {
+				console.log('✅ Received', serverData.quotations.length, 'quotations from server, caching ALL to IndexedDB');
+				await cacheQuotations(serverData.quotations);
+				console.log('💾 Successfully cached', serverData.quotations.length, 'quotations to IndexedDB');
+			} else {
+				console.log('⚠️ No quotations available for bulk caching');
+			}
+		} catch (error) {
+			console.error('❌ Error fetching all quotations for caching:', error);
+		}
 	}
 	async function getTasks(forceRefresh = false) {
 		if (forceRefresh) {
 			isRefreshingTasks = true;
 			taskRefreshMessage = null;
+			console.log('🔄 Force refreshing tasks from Todoist API...');
+			await getTasksFromServer(true);
+			return;
 		}
-		
+
 		try {
-			const url = forceRefresh ? '/api/tasks?refresh=true' : '/api/tasks';
-			const response = await fetch(url);
-			const data = await response.json();
+			// First try to load from IndexedDB cache
+			const cachedTasks = await getCachedTasks();
 			
-			if (data.success) {
-				// Split tasks into today and overdue
-				const today = new Date().toISOString().split('T')[0];
-				tasksData = {
-					today: data.tasks.filter(task => task.due && task.due.date === today),
-					overdue: data.tasks.filter(task => task.due && task.due.date < today)
-				};
+			if (cachedTasks.length > 0) {
+				console.log('📱 Tasks loaded from IndexedDB cache:', cachedTasks.length, 'tasks');
+				// Show cached data immediately
+				splitAndDisplayTasks(cachedTasks);
 				
-				if (forceRefresh) {
-					const totalTasks = data.tasks.length;
-					taskRefreshMessage = `Refreshed ${totalTasks} tasks successfully`;
+				// Check if we should refresh from server
+				const cacheInfo = await getTasksCacheInfo();
+				const cacheAge = cacheInfo.lastCached ? Date.now() - new Date(cacheInfo.lastCached).getTime() : Infinity;
+				const shouldRefresh = cacheAge > 24 * 60 * 60 * 1000; // Refresh if cache is older than 1 day
+				
+				if (shouldRefresh) {
+					console.log('🔄 Tasks cache is stale (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), refreshing in background...');
+					// Fetch fresh data in background and update cache
+					try {
+						await getTasksFromServer(false);
+					} catch (bgError) {
+						console.log('❌ Background tasks refresh failed:', bgError);
+						// Keep showing cached data
+					}
+				} else {
+					console.log('✅ Tasks cache is fresh (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), no refresh needed');
 				}
 			} else {
-				if (forceRefresh) {
+				console.log('💾 No cached tasks found, fetching from server...');
+				// No cache, fetch from server
+				await getTasksFromServer(false);
+			}
+		} catch (error) {
+			console.error('❌ Error loading tasks:', error);
+			// Fall back to server
+			await getTasksFromServer(false);
+		}
+	}
+
+	async function getTasksFromServer(isFullRefresh = false) {
+		try {
+			if (isFullRefresh) {
+				console.log('🗄️ Fetching tasks from Todoist API and updating server cache...');
+				const response = await fetch('/api/tasks?refresh=true');
+				const data = await response.json();
+				
+				if (data.success) {
+					console.log('✅ Received', data.tasks.length, 'tasks from Todoist, updating IndexedDB cache');
+					await cacheTasks(data.tasks);
+					splitAndDisplayTasks(data.tasks);
+					
+					taskRefreshMessage = `Refreshed ${data.total} tasks successfully`;
+				} else {
 					taskRefreshMessage = `Refresh failed: ${data.error}`;
+				}
+			} else {
+				console.log('🗄️ Fetching tasks from SQLite server cache...');
+				const response = await fetch('/api/tasks-cached');
+				const serverData = await response.json();
+				
+				if (serverData.tasks) {
+					console.log('✅ Received', serverData.tasks.length, 'tasks from server, updating IndexedDB cache');
+					await cacheTasks(serverData.tasks);
+					splitAndDisplayTasks(serverData.tasks);
+				} else {
+					console.log('⚠️ No tasks from server cache, falling back to full API refresh...');
+					await getTasksFromServer(true);
 				}
 			}
 		} catch (error) {
-			if (forceRefresh) {
+			console.error('❌ Error fetching tasks from server:', error);
+			if (isFullRefresh) {
 				taskRefreshMessage = `Refresh failed: ${error.message}`;
 			}
 		} finally {
-			if (forceRefresh) {
+			if (isFullRefresh) {
 				isRefreshingTasks = false;
 			}
 		}
+	}
+
+	function splitAndDisplayTasks(tasks) {
+		// Split tasks into today and overdue
+		const today = new Date().toISOString().split('T')[0];
+		tasksData = {
+			today: tasks.filter(task => task.due && task.due.date === today),
+			overdue: tasks.filter(task => task.due && task.due.date < today)
+		};
 	}
 	
 	async function syncQuotations() {
@@ -166,8 +321,9 @@
 				} else {
 					syncMessage = `Synced ${synced} quotations successfully`;
 				}
-				// Optionally refresh the current quotation
-				await getQuotation();
+				// Cache ALL quotations to IndexedDB, then refresh display
+				await cacheAllQuotationsFromServer();
+				await getQuotationFromServer();
 			} else {
 				syncMessage = `Sync failed: ${result.error}`;
 			}
@@ -199,7 +355,8 @@
 				} else {
 					wordSyncMessage = `Synced ${synced} words successfully`;
 				}
-				// Refresh the current word and update cache
+				// Cache ALL words to IndexedDB, then refresh display
+				await cacheAllWordsFromServer();
 				await getWordFromServer();
 			} else {
 				wordSyncMessage = `Sync failed: ${result.error}`;
@@ -263,7 +420,10 @@
 		<div class="flex gap-2">
 			<button
 				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
-				on:click={getQuotation}>Get new quotation</button
+				on:click={async () => {
+					// Force refresh from server
+					await getQuotationFromServer();
+				}}>Get new quotation</button
 			>
 			<button
 				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer {isSyncingQuotations ? 'opacity-50' : ''}"
