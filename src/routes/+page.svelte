@@ -421,8 +421,16 @@
 			<button
 				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
 				on:click={async () => {
-					// Force refresh from server
-					await getQuotationFromServer();
+					// Get different random quotation from cache
+					console.log('🎲 Getting new random quotation from IndexedDB cache...');
+					const newQuotation = await getCachedRandomQuotation();
+					if (newQuotation) {
+						console.log('✅ Got new random quotation from cache');
+						quotationData = newQuotation;
+					} else {
+						console.log('💾 No cached quotations, fetching from server...');
+						await getQuotationFromServer();
+					}
 				}}>Get new quotation</button
 			>
 			<button
@@ -547,8 +555,16 @@
 			<button
 				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
 				on:click={async () => {
-					// Force refresh from server
-					await getWordFromServer();
+					// Get different random words from cache
+					console.log('🎲 Getting new random words from IndexedDB cache...');
+					const newWords = await getCachedWords(3);
+					if (newWords.length > 0) {
+						console.log('✅ Got', newWords.length, 'new random words from cache');
+						wordData = newWords;
+					} else {
+						console.log('💾 No cached words, fetching from server...');
+						await getWordFromServer();
+					}
 				}}>Get new words</button
 			>
 			<button

@@ -6,8 +6,12 @@ import { getLastSyncInfo } from '$lib/db/sync.js';
 export async function GET() {
 	try {
 		// Get random words from SQLite cache
-		const randomWords = getRandomWords(3);
 		const wordCount = getWordCount();
+		console.log('SQLite word count:', wordCount);
+		
+		const randomWords = getRandomWords(3);
+		console.log('Random words from SQLite:', randomWords?.length || 0);
+		
 		const syncInfo = getLastSyncInfo('words');
 		
 		return json({
