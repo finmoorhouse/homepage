@@ -1,44 +1,12 @@
 import { json } from '@sveltejs/kit';
 import { TodoistApi } from '@doist/todoist-api-typescript';
 import { TODOIST_KEY } from '$env/static/private';
-import { getFormattedTasks, getTaskCount, bulkUpsertTasks } from '$lib/db/tasks.js';
-import { getDatabase } from '$lib/db/index.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ url }) {
 	try {
-		const forceRefresh = url.searchParams.get('refresh') === 'true';
-		
-		// If not forcing refresh, try to load from cache first
-		if (!forceRefresh) {
-			const taskCount = getTaskCount();
-			if (taskCount > 0) {
-				// Load from cache and filter for due/overdue tasks
-				const cachedTasks = getFormattedTasks();
-				const filteredTasks = filterAndLimitTasks(cachedTasks);
-				
-				return json({
-					success: true,
-					tasks: filteredTasks,
-					total: filteredTasks.length,
-					fromCache: true
-				});
-			}
-		}
-		
-		// Cache is empty or refresh requested - fetch from Todoist API
+		// Fetch tasks directly from Todoist API
 		const apiTasks = await fetchTasksFromTodoist();
-		
-		// Save to cache
-		bulkUpsertTasks(apiTasks);
-		
-		// Update sync metadata
-		const db = getDatabase();
-		const stmt = db.prepare(`
-			INSERT OR REPLACE INTO sync_metadata (table_name, last_sync, record_count)
-			VALUES (?, CURRENT_TIMESTAMP, ?)
-		`);
-		stmt.run('todoist_tasks', apiTasks.length);
 		
 		// Filter and return
 		const filteredTasks = filterAndLimitTasks(apiTasks);
@@ -46,28 +14,12 @@ export async function GET({ url }) {
 		return json({
 			success: true,
 			tasks: filteredTasks,
-			total: filteredTasks.length,
-			fromCache: false
+			total: filteredTasks.length
 		});
 		
 	} catch (error) {
 		console.error('Error in tasks API:', error);
-		
-		// Try to return cached data as fallback
-		try {
-			const cachedTasks = getFormattedTasks();
-			const filteredTasks = filterAndLimitTasks(cachedTasks);
-			
-			return json({
-				success: true,
-				tasks: filteredTasks,
-				total: filteredTasks.length,
-				fromCache: true,
-				warning: 'Using cached data due to API error'
-			});
-		} catch (cacheError) {
-			return json({ error: 'Failed to fetch tasks from Todoist and no cached data available' }, { status: 500 });
-		}
+		return json({ error: 'Failed to fetch tasks from Todoist' }, { status: 500 });
 	}
 }
 

@@ -1,34 +1,35 @@
 import { QUOTATION_API_URL } from '$env/static/private';
 import { json } from '@sveltejs/kit';
-import { getRandomQuotation, getQuotationCount } from '$lib/db/quotations.js';
-import { syncQuotationsFromGoogleSheets } from '$lib/db/sync.js';
 
 const API_URL = QUOTATION_API_URL;
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET() {
 	try {
-		// Check if we have any quotations in cache
-		const count = getQuotationCount();
+		// Get a random quotation directly from Google Sheets API
+		const response = await fetch(API_URL, {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json',
+			}
+		});
 		
-		if (count === 0) {
-			// No cached quotations, try to sync first
-			console.log('No cached quotations found, syncing from Google Sheets...');
-			await syncQuotationsFromGoogleSheets(API_URL);
+		if (!response.ok) {
+			console.error('Failed to fetch quotation from Google Sheets:', response.statusText);
+			return json({ error: 'Failed to fetch quotation' }, { status: 500 });
 		}
 		
-		// Get a random quotation from cache
-		const quotation = getRandomQuotation();
+		const result = await response.json();
 		
-		if (!quotation) {
+		if (!result.success || !result.quotation) {
 			return json({ error: 'No quotations available' }, { status: 404 });
 		}
 		
 		// Return in the same format as the original API
 		return json({
-			quotation: quotation.text,
-			who: quotation.author,
-			source: quotation.source
+			quotation: result.quotation,
+			who: result.who || '',
+			source: result.source || ''
 		});
 		
 	} catch (error) {
