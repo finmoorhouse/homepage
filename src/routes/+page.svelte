@@ -5,6 +5,7 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
+	import { getCachedWords, cacheWords, getCacheInfo } from '$lib/cache/words.js';
 
 	let wordData = null;
 	let quotationData = null;
@@ -30,8 +31,76 @@
 	let taskRefreshMessage = null;
 
 	async function getWord() {
-		const response = await fetch('/api/word');
-		wordData = await response.json();
+		try {
+			// First try to load from IndexedDB cache
+			const cachedWords = await getCachedWords(3);
+			
+			if (cachedWords.length > 0) {
+				console.log('📱 Words loaded from IndexedDB cache:', cachedWords.length, 'words');
+				// Show cached data immediately
+				wordData = cachedWords;
+				
+				// Then check if we should refresh from server
+				const cacheInfo = await getCacheInfo();
+				const cacheAge = cacheInfo.lastCached ? Date.now() - new Date(cacheInfo.lastCached).getTime() : Infinity;
+				const shouldRefresh = cacheAge > 24 * 60 * 60 * 1000; // Refresh if cache is older than 1 day
+				
+				if (shouldRefresh) {
+					console.log('🔄 Cache is stale (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), refreshing in background...');
+					// Fetch fresh data in background and update cache
+					try {
+						const response = await fetch('/api/words-cached');
+						const serverData = await response.json();
+						
+						if (serverData.words && serverData.words.length > 0) {
+							console.log('🗄️ Updated cache with', serverData.words.length, 'words from server');
+							await cacheWords(serverData.words);
+							// Update display with fresh data
+							wordData = serverData.words;
+						}
+					} catch (bgError) {
+						console.log('❌ Background refresh failed:', bgError);
+						// Keep showing cached data
+					}
+				} else {
+					console.log('✅ Cache is fresh (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), no refresh needed');
+				}
+			} else {
+				console.log('💾 No cached words found, fetching from server...');
+				// No cache, fetch from server
+				await getWordFromServer();
+			}
+		} catch (error) {
+			console.error('❌ Error loading words:', error);
+			// Fall back to server
+			await getWordFromServer();
+		}
+	}
+
+	async function getWordFromServer() {
+		try {
+			console.log('🗄️ Fetching words from SQLite server cache...');
+			const response = await fetch('/api/words-cached');
+			const serverData = await response.json();
+			
+			if (serverData.words) {
+				console.log('✅ Received', serverData.words.length, 'words from server, updating IndexedDB cache');
+				wordData = serverData.words;
+				// Cache the data
+				if (serverData.words.length > 0) {
+					await cacheWords(serverData.words);
+				}
+			} else {
+				console.log('⚠️ No words from server cache, falling back to original API...');
+				// Fall back to original API
+				const fallbackResponse = await fetch('/api/word');
+				wordData = await fallbackResponse.json();
+				console.log('📡 Received data from original API');
+			}
+		} catch (error) {
+			console.error('❌ Error fetching from server:', error);
+			wordData = null;
+		}
 	}
 	async function getQuotation() {
 		const response = await fetch('/api/quotation');
@@ -130,8 +199,8 @@
 				} else {
 					wordSyncMessage = `Synced ${synced} words successfully`;
 				}
-				// Optionally refresh the current word
-				await getWord();
+				// Refresh the current word and update cache
+				await getWordFromServer();
 			} else {
 				wordSyncMessage = `Sync failed: ${result.error}`;
 			}
@@ -317,7 +386,10 @@
 		<div class="flex gap-2">
 			<button
 				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
-				on:click={getWord}>Get new words</button
+				on:click={async () => {
+					// Force refresh from server
+					await getWordFromServer();
+				}}>Get new words</button
 			>
 			<button
 				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer {isSyncingWords ? 'opacity-50' : ''}"
