@@ -5,7 +5,11 @@
 <script>
 	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
-	import { getCachedWords, cacheWords, getCacheInfo, getCachedTasks, cacheTasks, getTasksCacheInfo, getCachedRandomQuotation, cacheQuotations, getQuotationsCacheInfo } from '$lib/cache/words.js';
+	import { getCachedWords, cacheWords, getCacheInfo, getCachedTasks, cacheTasks, getTasksCacheInfo, getCachedRandomQuotation, cacheQuotations, getQuotationsCacheInfo, getCachedQuotationCount } from '$lib/cache/words.js';
+	
+	// Accept any unknown props to avoid SvelteKit warnings
+	// Reference $$restProps to handle params and other unknown props
+	$: if ($$restProps) { /* handle unknown props like params */ }
 
 	let wordData = null;
 	let quotationData = null;
@@ -49,70 +53,57 @@
 					console.log('🔄 Cache is stale (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), refreshing in background...');
 					// Fetch fresh data in background and update cache
 					try {
-						const response = await fetch('/api/words-cached');
-						const serverData = await response.json();
-						
-						if (serverData.words && serverData.words.length > 0) {
-							console.log('🗄️ Updated cache with', serverData.words.length, 'words from server');
-							await cacheWords(serverData.words);
-							// Update display with fresh data
-							wordData = serverData.words;
-						}
+						await getWordFromAPI();
 					} catch (bgError) {
 						console.log('❌ Background refresh failed:', bgError);
 						// Keep showing cached data
 					}
 				} else {
-					console.log('✅ Cache is fresh (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), no refresh needed');
+					console.log('✅ Words cache is fresh (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), no refresh needed');
 				}
 			} else {
-				console.log('💾 No cached words found, fetching from server...');
-				// No cache, fetch from server
-				await getWordFromServer();
+				console.log('💾 No cached words found, fetching from API...');
+				// No cache, fetch from API
+				await getWordFromAPI();
 			}
 		} catch (error) {
 			console.error('❌ Error loading words:', error);
-			// Fall back to server
-			await getWordFromServer();
+			// Fall back to API
+			await getWordFromAPI();
 		}
 	}
 
-	async function getWordFromServer() {
+	async function getWordFromAPI() {
 		try {
-			console.log('🗄️ Fetching words from SQLite server cache...');
-			const response = await fetch('/api/words-cached');
-			const serverData = await response.json();
+			console.log('📡 Fetching words directly from Google Sheets API...');
+			const response = await fetch('/api/words-direct');
+			const apiData = await response.json();
 			
-			if (serverData.words) {
-				console.log('✅ Received', serverData.words.length, 'words from server, updating IndexedDB cache');
-				wordData = serverData.words;
+			if (apiData.words && apiData.words.length > 0) {
+				console.log('✅ Received', apiData.words.length, 'words from Google Sheets, caching to IndexedDB');
+				wordData = apiData.words;
 				// Cache the data
-				if (serverData.words.length > 0) {
-					await cacheWords(serverData.words);
-				}
+				await cacheWords(apiData.words);
 			} else {
-				console.log('⚠️ No words from server cache, falling back to original API...');
-				// Fall back to original API
-				const fallbackResponse = await fetch('/api/word');
-				wordData = await fallbackResponse.json();
-				console.log('📡 Received data from original API');
+				console.log('⚠️ No words from Google Sheets API');
+				wordData = null;
 			}
 		} catch (error) {
-			console.error('❌ Error fetching from server:', error);
+			console.error('❌ Error fetching from Google Sheets API:', error);
 			wordData = null;
 		}
 	}
 
-	async function cacheAllWordsFromServer() {
+	async function cacheAllWordsFromAPI() {
 		try {
-			console.log('🗄️ Fetching ALL words from SQLite server cache for IndexedDB...');
-			const response = await fetch('/api/words-all');
-			const serverData = await response.json();
+			console.log('📡 Fetching ALL words from Google Sheets API for IndexedDB...');
+			const response = await fetch('/api/words-direct?all=true');
+			const apiData = await response.json();
 			
-			if (serverData.words && serverData.words.length > 0) {
-				console.log('✅ Received', serverData.words.length, 'words from server, caching ALL to IndexedDB');
-				await cacheWords(serverData.words);
-				console.log('💾 Successfully cached', serverData.words.length, 'words to IndexedDB');
+			if (apiData.words && apiData.words.length > 0) {
+				console.log('✅ Received', apiData.words.length, 'words from Google Sheets, caching ALL to IndexedDB');
+				await cacheWords(apiData.words);
+				console.log('💾 Successfully cached', apiData.words.length, 'words to IndexedDB');
 			} else {
 				console.log('⚠️ No words available for bulk caching');
 			}
@@ -139,7 +130,7 @@
 					console.log('🔄 Quotations cache is stale (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), refreshing in background...');
 					// Fetch fresh data in background and update cache
 					try {
-						await getQuotationFromServer();
+						await getQuotationFromAPI();
 					} catch (bgError) {
 						console.log('❌ Background quotation refresh failed:', bgError);
 						// Keep showing cached data
@@ -148,53 +139,50 @@
 					console.log('✅ Quotations cache is fresh (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), no refresh needed');
 				}
 			} else {
-				console.log('💾 No cached quotations found, fetching from server...');
-				// No cache, fetch from server
-				await getQuotationFromServer();
+				console.log('💾 No cached quotations found, fetching from API...');
+				// No cache, fetch from API
+				await getQuotationFromAPI();
 			}
 		} catch (error) {
 			console.error('❌ Error loading quotation:', error);
-			// Fall back to server
-			await getQuotationFromServer();
+			// Fall back to API
+			await getQuotationFromAPI();
 		}
 	}
 
-	async function getQuotationFromServer() {
+	async function getQuotationFromAPI() {
 		try {
-			console.log('🗄️ Fetching quotation from SQLite server cache...');
-			const response = await fetch('/api/quotations-cached');
-			const serverData = await response.json();
+			console.log('📡 Fetching quotation directly from Google Sheets API...');
+			const response = await fetch('/api/quotations-direct');
+			const apiData = await response.json();
 			
-			if (serverData.quotation) {
-				console.log('✅ Received quotation from server');
+			if (apiData.quotation) {
+				console.log('✅ Received quotation from Google Sheets');
 				quotationData = {
-					quotation: serverData.quotation,
-					who: serverData.who,
-					source: serverData.source
+					quotation: apiData.quotation,
+					who: apiData.who,
+					source: apiData.source
 				};
 			} else {
-				console.log('⚠️ No quotations from server cache, falling back to original API...');
-				// Fall back to original API
-				const fallbackResponse = await fetch('/api/quotation');
-				quotationData = await fallbackResponse.json();
-				console.log('📡 Received quotation from original API');
+				console.log('⚠️ No quotation from Google Sheets API');
+				quotationData = null;
 			}
 		} catch (error) {
-			console.error('❌ Error fetching quotation from server:', error);
+			console.error('❌ Error fetching quotation from Google Sheets API:', error);
 			quotationData = null;
 		}
 	}
 
-	async function cacheAllQuotationsFromServer() {
+	async function cacheAllQuotationsFromAPI() {
 		try {
-			console.log('🗄️ Fetching ALL quotations from SQLite server cache for IndexedDB...');
-			const response = await fetch('/api/quotations-all');
-			const serverData = await response.json();
+			console.log('📡 Fetching ALL quotations from Google Sheets API for IndexedDB...');
+			const response = await fetch('/api/quotations-direct?all=true');
+			const apiData = await response.json();
 			
-			if (serverData.quotations && serverData.quotations.length > 0) {
-				console.log('✅ Received', serverData.quotations.length, 'quotations from server, caching ALL to IndexedDB');
-				await cacheQuotations(serverData.quotations);
-				console.log('💾 Successfully cached', serverData.quotations.length, 'quotations to IndexedDB');
+			if (apiData.quotations && apiData.quotations.length > 0) {
+				console.log('✅ Received', apiData.quotations.length, 'quotations from Google Sheets, caching ALL to IndexedDB');
+				await cacheQuotations(apiData.quotations);
+				console.log('💾 Successfully cached', apiData.quotations.length, 'quotations to IndexedDB');
 			} else {
 				console.log('⚠️ No quotations available for bulk caching');
 			}
@@ -207,7 +195,7 @@
 			isRefreshingTasks = true;
 			taskRefreshMessage = null;
 			console.log('🔄 Force refreshing tasks from Todoist API...');
-			await getTasksFromServer(true);
+			await getTasksFromAPI(true);
 			return;
 		}
 
@@ -229,7 +217,7 @@
 					console.log('🔄 Tasks cache is stale (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), refreshing in background...');
 					// Fetch fresh data in background and update cache
 					try {
-						await getTasksFromServer(false);
+						await getTasksFromAPI(false);
 					} catch (bgError) {
 						console.log('❌ Background tasks refresh failed:', bgError);
 						// Keep showing cached data
@@ -238,56 +226,77 @@
 					console.log('✅ Tasks cache is fresh (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), no refresh needed');
 				}
 			} else {
-				console.log('💾 No cached tasks found, fetching from server...');
-				// No cache, fetch from server
-				await getTasksFromServer(false);
+				console.log('💾 No cached tasks found, fetching from API...');
+				// No cache, fetch from API
+				await getTasksFromAPI(false);
 			}
 		} catch (error) {
 			console.error('❌ Error loading tasks:', error);
-			// Fall back to server
-			await getTasksFromServer(false);
+			// Fall back to API
+			await getTasksFromAPI(false);
 		}
 	}
 
-	async function getTasksFromServer(isFullRefresh = false) {
+	async function getTasksFromAPI(fetchAll = false) {
 		try {
-			if (isFullRefresh) {
-				console.log('🗄️ Fetching tasks from Todoist API and updating server cache...');
-				const response = await fetch('/api/tasks?refresh=true');
-				const data = await response.json();
+			if (fetchAll) {
+				console.log('📡 Fetching ALL tasks from Todoist API...');
+				const response = await fetch('/api/tasks-direct?all=true');
+				const apiData = await response.json();
 				
-				if (data.success) {
-					console.log('✅ Received', data.tasks.length, 'tasks from Todoist, updating IndexedDB cache');
-					await cacheTasks(data.tasks);
-					splitAndDisplayTasks(data.tasks);
+				if (apiData.tasks && apiData.tasks.length > 0) {
+					console.log('✅ Received', apiData.tasks.length, 'tasks from Todoist, caching to IndexedDB');
+					await cacheTasks(apiData.tasks);
+					// Filter for display
+					splitAndDisplayTasks(apiData.tasks);
 					
-					taskRefreshMessage = `Refreshed ${data.total} tasks successfully`;
+					taskRefreshMessage = `Refreshed ${apiData.meta.totalCount} tasks successfully`;
 				} else {
-					taskRefreshMessage = `Refresh failed: ${data.error}`;
+					taskRefreshMessage = `Refresh failed: No tasks received`;
 				}
 			} else {
-				console.log('🗄️ Fetching tasks from SQLite server cache...');
-				const response = await fetch('/api/tasks-cached');
-				const serverData = await response.json();
+				console.log('📡 Fetching filtered tasks from Todoist API...');
+				const response = await fetch('/api/tasks-direct');
+				const apiData = await response.json();
 				
-				if (serverData.tasks) {
-					console.log('✅ Received', serverData.tasks.length, 'tasks from server, updating IndexedDB cache');
-					await cacheTasks(serverData.tasks);
-					splitAndDisplayTasks(serverData.tasks);
+				if (apiData.tasks) {
+					console.log('✅ Received', apiData.tasks.length, 'filtered tasks from Todoist, caching to IndexedDB');
+					await cacheTasks(apiData.tasks);
+					splitAndDisplayTasks(apiData.tasks);
 				} else {
-					console.log('⚠️ No tasks from server cache, falling back to full API refresh...');
-					await getTasksFromServer(true);
+					console.log('⚠️ No tasks from Todoist API');
 				}
 			}
 		} catch (error) {
-			console.error('❌ Error fetching tasks from server:', error);
-			if (isFullRefresh) {
+			console.error('❌ Error fetching tasks from Todoist API:', error);
+			if (fetchAll) {
 				taskRefreshMessage = `Refresh failed: ${error.message}`;
 			}
 		} finally {
-			if (isFullRefresh) {
+			if (fetchAll) {
 				isRefreshingTasks = false;
 			}
+		}
+	}
+
+	async function cacheAllTasksFromAPI() {
+		try {
+			console.log('📡 Fetching ALL tasks from Todoist API for IndexedDB...');
+			const response = await fetch('/api/tasks-direct?all=true');
+			const apiData = await response.json();
+			
+			if (apiData.tasks && apiData.tasks.length > 0) {
+				console.log('✅ Received', apiData.tasks.length, 'tasks from Todoist, caching ALL to IndexedDB');
+				await cacheTasks(apiData.tasks);
+				console.log('💾 Successfully cached', apiData.tasks.length, 'tasks to IndexedDB');
+				return apiData.meta.totalCount;
+			} else {
+				console.log('⚠️ No tasks available for bulk caching');
+				return 0;
+			}
+		} catch (error) {
+			console.error('❌ Error fetching all tasks for caching:', error);
+			throw error;
 		}
 	}
 
@@ -299,35 +308,59 @@
 			overdue: tasks.filter(task => task.due && task.due.date < today)
 		};
 	}
+
+	async function syncTasks() {
+		isRefreshingTasks = true;
+		taskRefreshMessage = null;
+		try {
+			console.log('🔄 Syncing tasks directly from Todoist API...');
+			
+			// Fetch ALL tasks directly from Todoist and cache them
+			const totalCount = await cacheAllTasksFromAPI();
+			
+			// Now get tasks from the freshly populated cache to display
+			console.log('🎲 Getting tasks from freshly synced cache for display...');
+			const cachedTasks = await getCachedTasks();
+			if (cachedTasks.length > 0) {
+				console.log('✅ Displaying', cachedTasks.length, 'tasks from synced cache');
+				splitAndDisplayTasks(cachedTasks);
+				taskRefreshMessage = `Successfully synced ${totalCount} tasks from Todoist`;
+			} else {
+				taskRefreshMessage = `Sync completed but no tasks available for display`;
+			}
+			
+		} catch (error) {
+			console.error('❌ Sync tasks failed:', error);
+			taskRefreshMessage = `Sync failed: ${error.message}`;
+		} finally {
+			isRefreshingTasks = false;
+		}
+	}
 	
 	async function syncQuotations() {
 		isSyncingQuotations = true;
 		syncMessage = null;
 		try {
-			const response = await fetch('/api/sync', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({ table: 'quotations' }),
-			});
+			console.log('🔄 Syncing quotations directly from Google Sheets API...');
 			
-			const result = await response.json();
+			// Fetch ALL quotations directly from Google Sheets and cache them
+			await cacheAllQuotationsFromAPI();
 			
-			if (result.success) {
-				const { synced, inserted, updated } = result;
-				if (inserted && updated) {
-					syncMessage = `Synced ${synced} quotations (${inserted} new, ${updated} updated)`;
-				} else {
-					syncMessage = `Synced ${synced} quotations successfully`;
-				}
-				// Cache ALL quotations to IndexedDB, then refresh display
-				await cacheAllQuotationsFromServer();
-				await getQuotationFromServer();
+			// Now get a quotation from the freshly populated cache to display
+			console.log('🎲 Getting quotation from freshly synced cache for display...');
+			const cachedQuotation = await getCachedRandomQuotation();
+			if (cachedQuotation) {
+				console.log('✅ Displaying quotation from synced cache');
+				quotationData = cachedQuotation;
+				// Get the actual total count from cache for the success message
+				const totalCachedCount = await getCachedQuotationCount();
+				syncMessage = `Successfully synced ${totalCachedCount} quotations from Google Sheets`;
 			} else {
-				syncMessage = `Sync failed: ${result.error}`;
+				syncMessage = `Sync completed but no quotations available for display`;
 			}
+			
 		} catch (error) {
+			console.error('❌ Sync quotations failed:', error);
 			syncMessage = `Sync failed: ${error.message}`;
 		} finally {
 			isSyncingQuotations = false;
@@ -338,30 +371,24 @@
 		isSyncingWords = true;
 		wordSyncMessage = null;
 		try {
-			const response = await fetch('/api/sync', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({ table: 'words' }),
-			});
+			console.log('🔄 Syncing words directly from Google Sheets API...');
 			
-			const result = await response.json();
+			// Fetch ALL words directly from Google Sheets and cache them
+			await cacheAllWordsFromAPI();
 			
-			if (result.success) {
-				const { synced, inserted, updated } = result;
-				if (inserted && updated) {
-					wordSyncMessage = `Synced ${synced} words (${inserted} new, ${updated} updated)`;
-				} else {
-					wordSyncMessage = `Synced ${synced} words successfully`;
-				}
-				// Cache ALL words to IndexedDB, then refresh display
-				await cacheAllWordsFromServer();
-				await getWordFromServer();
+			// Now get some words from the freshly populated cache to display
+			console.log('🎲 Getting words from freshly synced cache for display...');
+			const cachedWords = await getCachedWords(3);
+			if (cachedWords.length > 0) {
+				console.log('✅ Displaying', cachedWords.length, 'words from synced cache');
+				wordData = cachedWords;
+				wordSyncMessage = `Successfully synced ${cachedWords.length} words from Google Sheets`;
 			} else {
-				wordSyncMessage = `Sync failed: ${result.error}`;
+				wordSyncMessage = `Sync completed but no words available for display`;
 			}
+			
 		} catch (error) {
+			console.error('❌ Sync words failed:', error);
 			wordSyncMessage = `Sync failed: ${error.message}`;
 		} finally {
 			isSyncingWords = false;
@@ -413,7 +440,7 @@
 		
 		{#if syncMessage}
 			<div class="mb-4 p-2 border border-flexoki-ui bg-flexoki-bg-2">
-				<span class="text-sm {syncMessage.includes('successfully') ? 'text-flexoki-gr' : 'text-flexoki-re'}">{syncMessage}</span>
+				<span class="text-sm {syncMessage.includes('successfully') || syncMessage.includes('Successfully') ? 'text-flexoki-gr' : 'text-flexoki-re'}">{syncMessage}</span>
 			</div>
 		{/if}
 		
@@ -428,8 +455,8 @@
 						console.log('✅ Got new random quotation from cache');
 						quotationData = newQuotation;
 					} else {
-						console.log('💾 No cached quotations, fetching from server...');
-						await getQuotationFromServer();
+						console.log('💾 No cached quotations, fetching from API...');
+						await getQuotationFromAPI();
 					}
 				}}>Get new quotation</button
 			>
@@ -513,13 +540,13 @@
 		
 		{#if taskRefreshMessage}
 			<div class="mb-4 p-2 border border-flexoki-ui bg-flexoki-bg-2">
-				<span class="text-sm {taskRefreshMessage.includes('Refresh failed') ? 'text-flexoki-re' : 'text-flexoki-gr'}">{taskRefreshMessage}</span>
+				<span class="text-sm {taskRefreshMessage.includes('Refresh failed') || taskRefreshMessage.includes('Sync failed') ? 'text-flexoki-re' : 'text-flexoki-gr'}">{taskRefreshMessage}</span>
 			</div>
 		{/if}
 		
 		<button
 			class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer {isRefreshingTasks ? 'opacity-50' : ''}"
-			on:click={() => getTasks(true)}
+			on:click={syncTasks}
 			disabled={isRefreshingTasks}
 		>
 			{isRefreshingTasks ? 'Syncing...' : 'Sync tasks'}
@@ -562,8 +589,8 @@
 						console.log('✅ Got', newWords.length, 'new random words from cache');
 						wordData = newWords;
 					} else {
-						console.log('💾 No cached words, fetching from server...');
-						await getWordFromServer();
+						console.log('💾 No cached words, fetching from API...');
+						await getWordFromAPI();
 					}
 				}}>Get new words</button
 			>

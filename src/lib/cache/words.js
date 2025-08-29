@@ -223,17 +223,33 @@ export async function cacheQuotations(quotations) {
 	
 	const timestamp = new Date().toISOString();
 	
-	for (const quotation of quotations) {
-		const quotationData = {
-			id: quotation.id,
-			text: quotation.text,
-			author: quotation.author,
-			source: quotation.source,
-			createdAt: quotation.created_at || timestamp,
-			updatedAt: quotation.updated_at || timestamp,
-			cachedAt: timestamp
-		};
-		await store.put(quotationData);
+	console.log('🔍 Caching quotations, sample data:', quotations[0]);
+	
+	for (let i = 0; i < quotations.length; i++) {
+		const quotation = quotations[i];
+		try {
+			const quotationData = {
+				// Generate ID if missing (IndexedDB keyPath requires it)
+				id: quotation.id || quotation.text?.substring(0, 50) || `quotation_${i}`,
+				text: quotation.text || quotation.quotation,
+				author: quotation.author || quotation.who,
+				source: quotation.source,
+				createdAt: quotation.created_at || timestamp,
+				updatedAt: quotation.updated_at || timestamp,
+				cachedAt: timestamp
+			};
+			
+			// Validate required fields
+			if (!quotationData.text) {
+				console.warn('⚠️ Skipping quotation with no text:', quotation);
+				continue;
+			}
+			
+			await store.put(quotationData);
+		} catch (error) {
+			console.error('❌ Error caching individual quotation:', error, quotation);
+			// Continue with other quotations
+		}
 	}
 	
 	await tx.done;
