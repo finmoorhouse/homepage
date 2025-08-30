@@ -513,7 +513,7 @@
 									<span>Due: {task.due.string}</span>
 								{/if}
 								{#if task.due && task.url}
-									<span>•</span>
+									<span>/</span>
 								{/if}
 								{#if task.url}
 									<a href={task.url} target="_blank" class="underline hover:text-flexoki-tx-2">Link</a>
