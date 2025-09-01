@@ -36,31 +36,12 @@
 
 	async function getWord() {
 		try {
-			// First try to load from IndexedDB cache
+			// Try to load from IndexedDB cache first
 			const cachedWords = await getCachedWords(3);
 			
 			if (cachedWords.length > 0) {
 				console.log('📱 Words loaded from IndexedDB cache:', cachedWords.length, 'words');
-				// Show cached data immediately
 				wordData = cachedWords;
-				
-				// Then check if we should refresh from server
-				const cacheInfo = await getCacheInfo();
-				const cacheAge = cacheInfo.lastCached ? Date.now() - new Date(cacheInfo.lastCached).getTime() : Infinity;
-				const shouldRefresh = cacheAge > 24 * 60 * 60 * 1000; // Refresh if cache is older than 1 day
-				
-				if (shouldRefresh) {
-					console.log('🔄 Cache is stale (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), refreshing in background...');
-					// Fetch fresh data in background and update cache
-					try {
-						await getWordFromAPI();
-					} catch (bgError) {
-						console.log('❌ Background refresh failed:', bgError);
-						// Keep showing cached data
-					}
-				} else {
-					console.log('✅ Words cache is fresh (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), no refresh needed');
-				}
 			} else {
 				console.log('💾 No cached words found, fetching from API...');
 				// No cache, fetch from API
@@ -113,31 +94,12 @@
 	}
 	async function getQuotation() {
 		try {
-			// First try to load from IndexedDB cache
+			// Try to load from IndexedDB cache first
 			const cachedQuotation = await getCachedRandomQuotation();
 			
 			if (cachedQuotation) {
 				console.log('📱 Quotation loaded from IndexedDB cache');
-				// Show cached data immediately
 				quotationData = cachedQuotation;
-				
-				// Check if we should refresh from server
-				const cacheInfo = await getQuotationsCacheInfo();
-				const cacheAge = cacheInfo.lastCached ? Date.now() - new Date(cacheInfo.lastCached).getTime() : Infinity;
-				const shouldRefresh = cacheAge > 24 * 60 * 60 * 1000; // Refresh if cache is older than 1 day
-				
-				if (shouldRefresh) {
-					console.log('🔄 Quotations cache is stale (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), refreshing in background...');
-					// Fetch fresh data in background and update cache
-					try {
-						await getQuotationFromAPI();
-					} catch (bgError) {
-						console.log('❌ Background quotation refresh failed:', bgError);
-						// Keep showing cached data
-					}
-				} else {
-					console.log('✅ Quotations cache is fresh (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), no refresh needed');
-				}
 			} else {
 				console.log('💾 No cached quotations found, fetching from API...');
 				// No cache, fetch from API
@@ -200,31 +162,12 @@
 		}
 
 		try {
-			// First try to load from IndexedDB cache
+			// Try to load from IndexedDB cache first
 			const cachedTasks = await getCachedTasks();
 			
 			if (cachedTasks.length > 0) {
 				console.log('📱 Tasks loaded from IndexedDB cache:', cachedTasks.length, 'tasks');
-				// Show cached data immediately
 				splitAndDisplayTasks(cachedTasks);
-				
-				// Check if we should refresh from server
-				const cacheInfo = await getTasksCacheInfo();
-				const cacheAge = cacheInfo.lastCached ? Date.now() - new Date(cacheInfo.lastCached).getTime() : Infinity;
-				const shouldRefresh = cacheAge > 24 * 60 * 60 * 1000; // Refresh if cache is older than 1 day
-				
-				if (shouldRefresh) {
-					console.log('🔄 Tasks cache is stale (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), refreshing in background...');
-					// Fetch fresh data in background and update cache
-					try {
-						await getTasksFromAPI(false);
-					} catch (bgError) {
-						console.log('❌ Background tasks refresh failed:', bgError);
-						// Keep showing cached data
-					}
-				} else {
-					console.log('✅ Tasks cache is fresh (age:', Math.round(cacheAge / (60 * 60 * 1000)), 'hours), no refresh needed');
-				}
 			} else {
 				console.log('💾 No cached tasks found, fetching from API...');
 				// No cache, fetch from API
