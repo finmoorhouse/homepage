@@ -45,6 +45,7 @@ export async function GET({ url }) {
 				quotation: data.quotation || data.text,
 				who: data.who || data.author,
 				source: data.source,
+				url: data.url,
 				meta: {
 					count: 1,
 					source: 'google-sheets-direct',

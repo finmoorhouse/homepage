@@ -1,15 +1,24 @@
-<svelte:head>
-	<title>Fin's Homepage</title>
-</svelte:head>
-
 <script>
 	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
-	import { getCachedWords, cacheWords, getCacheInfo, getCachedTasks, cacheTasks, getTasksCacheInfo, getCachedRandomQuotation, cacheQuotations, getQuotationsCacheInfo, getCachedQuotationCount } from '$lib/cache/words.js';
-	
+	import {
+		getCachedWords,
+		cacheWords,
+		getCacheInfo,
+		getCachedTasks,
+		cacheTasks,
+		getTasksCacheInfo,
+		getCachedRandomQuotation,
+		cacheQuotations,
+		getQuotationsCacheInfo,
+		getCachedQuotationCount
+	} from '$lib/cache/words.js';
+
 	// Accept any unknown props to avoid SvelteKit warnings
 	// Reference $$restProps to handle params and other unknown props
-	$: if ($$restProps) { /* handle unknown props like params */ }
+	$: if ($$restProps) {
+		/* handle unknown props like params */
+	}
 
 	let wordData = null;
 	let quotationData = null;
@@ -38,7 +47,7 @@
 		try {
 			// Try to load from IndexedDB cache first
 			const cachedWords = await getCachedWords(3);
-			
+
 			if (cachedWords.length > 0) {
 				console.log('📱 Words loaded from IndexedDB cache:', cachedWords.length, 'words');
 				wordData = cachedWords;
@@ -59,9 +68,13 @@
 			console.log('📡 Fetching words directly from Google Sheets API...');
 			const response = await fetch('/api/words-direct');
 			const apiData = await response.json();
-			
+
 			if (apiData.words && apiData.words.length > 0) {
-				console.log('✅ Received', apiData.words.length, 'words from Google Sheets, caching to IndexedDB');
+				console.log(
+					'✅ Received',
+					apiData.words.length,
+					'words from Google Sheets, caching to IndexedDB'
+				);
 				wordData = apiData.words;
 				// Cache the data
 				await cacheWords(apiData.words);
@@ -80,9 +93,13 @@
 			console.log('📡 Fetching ALL words from Google Sheets API for IndexedDB...');
 			const response = await fetch('/api/words-direct?all=true');
 			const apiData = await response.json();
-			
+
 			if (apiData.words && apiData.words.length > 0) {
-				console.log('✅ Received', apiData.words.length, 'words from Google Sheets, caching ALL to IndexedDB');
+				console.log(
+					'✅ Received',
+					apiData.words.length,
+					'words from Google Sheets, caching ALL to IndexedDB'
+				);
 				await cacheWords(apiData.words);
 				console.log('💾 Successfully cached', apiData.words.length, 'words to IndexedDB');
 			} else {
@@ -96,7 +113,7 @@
 		try {
 			// Try to load from IndexedDB cache first
 			const cachedQuotation = await getCachedRandomQuotation();
-			
+
 			if (cachedQuotation) {
 				console.log('📱 Quotation loaded from IndexedDB cache');
 				quotationData = cachedQuotation;
@@ -117,13 +134,14 @@
 			console.log('📡 Fetching quotation directly from Google Sheets API...');
 			const response = await fetch('/api/quotations-direct');
 			const apiData = await response.json();
-			
+
 			if (apiData.quotation) {
 				console.log('✅ Received quotation from Google Sheets');
 				quotationData = {
 					quotation: apiData.quotation,
 					who: apiData.who,
-					source: apiData.source
+					source: apiData.source,
+					url: apiData.url
 				};
 			} else {
 				console.log('⚠️ No quotation from Google Sheets API');
@@ -140,9 +158,13 @@
 			console.log('📡 Fetching ALL quotations from Google Sheets API for IndexedDB...');
 			const response = await fetch('/api/quotations-direct?all=true');
 			const apiData = await response.json();
-			
+
 			if (apiData.quotations && apiData.quotations.length > 0) {
-				console.log('✅ Received', apiData.quotations.length, 'quotations from Google Sheets, caching ALL to IndexedDB');
+				console.log(
+					'✅ Received',
+					apiData.quotations.length,
+					'quotations from Google Sheets, caching ALL to IndexedDB'
+				);
 				await cacheQuotations(apiData.quotations);
 				console.log('💾 Successfully cached', apiData.quotations.length, 'quotations to IndexedDB');
 			} else {
@@ -164,7 +186,7 @@
 		try {
 			// Try to load from IndexedDB cache first
 			const cachedTasks = await getCachedTasks();
-			
+
 			if (cachedTasks.length > 0) {
 				console.log('📱 Tasks loaded from IndexedDB cache:', cachedTasks.length, 'tasks');
 				splitAndDisplayTasks(cachedTasks);
@@ -186,13 +208,17 @@
 				console.log('📡 Fetching ALL tasks from Todoist API...');
 				const response = await fetch('/api/tasks-direct?all=true');
 				const apiData = await response.json();
-				
+
 				if (apiData.tasks && apiData.tasks.length > 0) {
-					console.log('✅ Received', apiData.tasks.length, 'tasks from Todoist, caching to IndexedDB');
+					console.log(
+						'✅ Received',
+						apiData.tasks.length,
+						'tasks from Todoist, caching to IndexedDB'
+					);
 					await cacheTasks(apiData.tasks);
 					// Filter for display
 					splitAndDisplayTasks(apiData.tasks);
-					
+
 					taskRefreshMessage = `Refreshed ${apiData.meta.totalCount} tasks successfully`;
 				} else {
 					taskRefreshMessage = `Refresh failed: No tasks received`;
@@ -201,9 +227,13 @@
 				console.log('📡 Fetching filtered tasks from Todoist API...');
 				const response = await fetch('/api/tasks-direct');
 				const apiData = await response.json();
-				
+
 				if (apiData.tasks) {
-					console.log('✅ Received', apiData.tasks.length, 'filtered tasks from Todoist, caching to IndexedDB');
+					console.log(
+						'✅ Received',
+						apiData.tasks.length,
+						'filtered tasks from Todoist, caching to IndexedDB'
+					);
 					await cacheTasks(apiData.tasks);
 					splitAndDisplayTasks(apiData.tasks);
 				} else {
@@ -227,9 +257,13 @@
 			console.log('📡 Fetching ALL tasks from Todoist API for IndexedDB...');
 			const response = await fetch('/api/tasks-direct?all=true');
 			const apiData = await response.json();
-			
+
 			if (apiData.tasks && apiData.tasks.length > 0) {
-				console.log('✅ Received', apiData.tasks.length, 'tasks from Todoist, caching ALL to IndexedDB');
+				console.log(
+					'✅ Received',
+					apiData.tasks.length,
+					'tasks from Todoist, caching ALL to IndexedDB'
+				);
 				await cacheTasks(apiData.tasks);
 				console.log('💾 Successfully cached', apiData.tasks.length, 'tasks to IndexedDB');
 				return apiData.meta.totalCount;
@@ -247,8 +281,8 @@
 		// Split tasks into today and overdue
 		const today = new Date().toISOString().split('T')[0];
 		tasksData = {
-			today: tasks.filter(task => task.due && task.due.date === today),
-			overdue: tasks.filter(task => task.due && task.due.date < today)
+			today: tasks.filter((task) => task.due && task.due.date === today),
+			overdue: tasks.filter((task) => task.due && task.due.date < today)
 		};
 	}
 
@@ -257,10 +291,10 @@
 		taskRefreshMessage = null;
 		try {
 			console.log('🔄 Syncing tasks directly from Todoist API...');
-			
+
 			// Fetch ALL tasks directly from Todoist and cache them
 			const totalCount = await cacheAllTasksFromAPI();
-			
+
 			// Now get tasks from the freshly populated cache to display
 			console.log('🎲 Getting tasks from freshly synced cache for display...');
 			const cachedTasks = await getCachedTasks();
@@ -271,7 +305,6 @@
 			} else {
 				taskRefreshMessage = `Sync completed but no tasks available for display`;
 			}
-			
 		} catch (error) {
 			console.error('❌ Sync tasks failed:', error);
 			taskRefreshMessage = `Sync failed: ${error.message}`;
@@ -279,16 +312,16 @@
 			isRefreshingTasks = false;
 		}
 	}
-	
+
 	async function syncQuotations() {
 		isSyncingQuotations = true;
 		syncMessage = null;
 		try {
 			console.log('🔄 Syncing quotations directly from Google Sheets API...');
-			
+
 			// Fetch ALL quotations directly from Google Sheets and cache them
 			await cacheAllQuotationsFromAPI();
-			
+
 			// Now get a quotation from the freshly populated cache to display
 			console.log('🎲 Getting quotation from freshly synced cache for display...');
 			const cachedQuotation = await getCachedRandomQuotation();
@@ -301,7 +334,6 @@
 			} else {
 				syncMessage = `Sync completed but no quotations available for display`;
 			}
-			
 		} catch (error) {
 			console.error('❌ Sync quotations failed:', error);
 			syncMessage = `Sync failed: ${error.message}`;
@@ -315,10 +347,10 @@
 		wordSyncMessage = null;
 		try {
 			console.log('🔄 Syncing words directly from Google Sheets API...');
-			
+
 			// Fetch ALL words directly from Google Sheets and cache them
 			await cacheAllWordsFromAPI();
-			
+
 			// Now get some words from the freshly populated cache to display
 			console.log('🎲 Getting words from freshly synced cache for display...');
 			const cachedWords = await getCachedWords(3);
@@ -329,7 +361,6 @@
 			} else {
 				wordSyncMessage = `Sync completed but no words available for display`;
 			}
-			
 		} catch (error) {
 			console.error('❌ Sync words failed:', error);
 			wordSyncMessage = `Sync failed: ${error.message}`;
@@ -340,7 +371,10 @@
 
 	// Function to convert markdown links to HTML
 	function parseMarkdownLinks(text) {
-		return text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-flexoki-tx-2 underline hover:text-flexoki-black">$1</a>');
+		return text.replace(
+			/\[([^\]]+)\]\(([^)]+)\)/g,
+			'<a href="$2" target="_blank" class="text-flexoki-tx-2 underline hover:text-flexoki-black">$1</a>'
+		);
 	}
 
 	// Load initial data when page mounts
@@ -352,6 +386,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Fin's Homepage</title>
+</svelte:head>
+
 <div class="m-5 p-2 border-b border-flexoki-ui min-h-[40px]">
 	<h1 class="text-2xl m-0 p-0">Fin's Homepage</h1>
 </div>
@@ -360,33 +398,42 @@
 	<div class="m-5 p-5 border border-flexoki-ui min-h-[40px] inline w-2xl">
 		{#if quotationData}
 			<div class="flex flex-col">
-				<p class="{quotationData.quotation.length < 200 ? 'text-2xl' : 'text-lg'} mb-8 leading-relaxed max-w-2xl text-left">{quotationData.quotation}</p>
+				<p
+					class="{quotationData.quotation.length < 200
+						? 'text-2xl'
+						: 'text-lg'} mb-8 leading-relaxed max-w-2xl text-left"
+				>
+					{quotationData.quotation}
+				</p>
 				{#if quotationData.who}
 					<p class="text-sm text-flexoki-black-2 font-medium text-right">
-						— {quotationData.who}
-						{#if quotationData.source}
-							{#if quotationData.url}
-								, <a href={quotationData.url}>{quotationData.source}</a>
-							{:else}
-								, {quotationData.source}
-							{/if}
+						— {quotationData.who}{#if quotationData.source}
+							{#if quotationData.url}, <a href={quotationData.url}>{quotationData.source}</a>
+							{:else}, {quotationData.source}{/if}
 						{/if}
 					</p>
 				{/if}
 			</div>
 		{:else}
 			<div class="flex flex-col">
-				<p class="text-lg mb-8 leading-relaxed max-w-2xl text-left text-flexoki-tx-2">Loading quotation...</p>
+				<p class="text-lg mb-8 leading-relaxed max-w-2xl text-left text-flexoki-tx-2">
+					Loading quotation...
+				</p>
 			</div>
 		{/if}
 		<hr class="my-6 border-flexoki-ui" />
-		
+
 		{#if syncMessage}
 			<div class="mb-4 p-2 border border-flexoki-ui bg-flexoki-bg-2">
-				<span class="text-sm {syncMessage.includes('successfully') || syncMessage.includes('Successfully') ? 'text-flexoki-gr' : 'text-flexoki-re'}">{syncMessage}</span>
+				<span
+					class="text-sm {syncMessage.includes('successfully') ||
+					syncMessage.includes('Successfully')
+						? 'text-flexoki-gr'
+						: 'text-flexoki-re'}">{syncMessage}</span
+				>
 			</div>
 		{/if}
-		
+
 		<div class="flex gap-2">
 			<button
 				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
@@ -404,7 +451,9 @@
 				}}>Get new quotation</button
 			>
 			<button
-				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer {isSyncingQuotations ? 'opacity-50' : ''}"
+				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer {isSyncingQuotations
+					? 'opacity-50'
+					: ''}"
 				on:click={syncQuotations}
 				disabled={isSyncingQuotations}
 			>
@@ -422,7 +471,13 @@
 			<div class="space-y-2 mb-6">
 				{#each tasksData.today as task}
 					<div class="flex items-center gap-2">
-						<span class="w-2 h-2 border border-flexoki-ui rounded-full {task.priority === 4 ? 'bg-flexoki-re' : task.priority === 3 ? 'bg-flexoki-or' : ''}"></span>
+						<span
+							class="w-2 h-2 border border-flexoki-ui rounded-full {task.priority === 4
+								? 'bg-flexoki-re'
+								: task.priority === 3
+									? 'bg-flexoki-or'
+									: ''}"
+						></span>
 						<div class="flex flex-col">
 							<span class="text-flexoki-tx-2">{@html parseMarkdownLinks(task.content)}</span>
 							<div class="text-xs text-flexoki-tx-3 flex gap-1 items-center">
@@ -433,7 +488,9 @@
 									<span>/</span>
 								{/if}
 								{#if task.url}
-									<a href={task.url} target="_blank" class="underline hover:text-flexoki-tx-2">Link</a>
+									<a href={task.url} target="_blank" class="underline hover:text-flexoki-tx-2"
+										>Link</a
+									>
 								{/if}
 							</div>
 						</div>
@@ -448,7 +505,13 @@
 			<div class="space-y-2 mb-6">
 				{#each tasksData.overdue as task}
 					<div class="flex items-center gap-2">
-						<span class="w-2 h-2 border border-flexoki-ui rounded-full {task.priority === 4 ? 'bg-flexoki-re' : task.priority === 3 ? 'bg-flexoki-or' : ''}"></span>
+						<span
+							class="w-2 h-2 border border-flexoki-ui rounded-full {task.priority === 4
+								? 'bg-flexoki-re'
+								: task.priority === 3
+									? 'bg-flexoki-or'
+									: ''}"
+						></span>
 						<div class="flex flex-col">
 							<span class="text-flexoki-tx-2">{@html parseMarkdownLinks(task.content)}</span>
 							<div class="text-xs text-flexoki-tx-3 flex gap-1 items-center">
@@ -459,7 +522,9 @@
 									<span>/</span>
 								{/if}
 								{#if task.url}
-									<a href={task.url} target="_blank" class="underline hover:text-flexoki-tx-2">Link</a>
+									<a href={task.url} target="_blank" class="underline hover:text-flexoki-tx-2"
+										>Link</a
+									>
 								{/if}
 							</div>
 						</div>
@@ -480,15 +545,22 @@
 		{/if}
 
 		<hr class="my-6 border-flexoki-ui" />
-		
+
 		{#if taskRefreshMessage}
 			<div class="mb-4 p-2 border border-flexoki-ui bg-flexoki-bg-2">
-				<span class="text-sm {taskRefreshMessage.includes('Refresh failed') || taskRefreshMessage.includes('Sync failed') ? 'text-flexoki-re' : 'text-flexoki-gr'}">{taskRefreshMessage}</span>
+				<span
+					class="text-sm {taskRefreshMessage.includes('Refresh failed') ||
+					taskRefreshMessage.includes('Sync failed')
+						? 'text-flexoki-re'
+						: 'text-flexoki-gr'}">{taskRefreshMessage}</span
+				>
 			</div>
 		{/if}
-		
+
 		<button
-			class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer {isRefreshingTasks ? 'opacity-50' : ''}"
+			class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer {isRefreshingTasks
+				? 'opacity-50'
+				: ''}"
 			on:click={syncTasks}
 			disabled={isRefreshingTasks}
 		>
@@ -512,15 +584,19 @@
 				{/if}
 			</div>
 		{/if}
-		
+
 		<hr class="my-6 border-flexoki-ui" />
-		
+
 		{#if wordSyncMessage}
 			<div class="mb-4 p-2 border border-flexoki-ui bg-flexoki-bg-2">
-				<span class="text-sm {wordSyncMessage.includes('Sync failed') ? 'text-flexoki-re' : 'text-flexoki-gr'}">{wordSyncMessage}</span>
+				<span
+					class="text-sm {wordSyncMessage.includes('Sync failed')
+						? 'text-flexoki-re'
+						: 'text-flexoki-gr'}">{wordSyncMessage}</span
+				>
 			</div>
 		{/if}
-		
+
 		<div class="flex gap-2">
 			<button
 				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer"
@@ -538,7 +614,9 @@
 				}}>Get new words</button
 			>
 			<button
-				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer {isSyncingWords ? 'opacity-50' : ''}"
+				class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer {isSyncingWords
+					? 'opacity-50'
+					: ''}"
 				on:click={syncWords}
 				disabled={isSyncingWords}
 			>
@@ -546,7 +624,6 @@
 			</button>
 		</div>
 	</div>
-
 </span>
 
 <div class="flex justify-center w-full flex-col md:flex-row">
@@ -664,9 +741,10 @@
 						newQuotation = '';
 						newQuotationWho = '';
 						newQuotationUrl = '';
-						
+
 						// Clear sync message and suggest syncing
-						syncMessage = 'Quotation added to Google Sheets. Click "Sync quotations" to see it locally.';
+						syncMessage =
+							'Quotation added to Google Sheets. Click "Sync quotations" to see it locally.';
 					} else if (result.data?.error) {
 						console.log('Setting quotation known error state');
 						quotationFormError = result.data.error;

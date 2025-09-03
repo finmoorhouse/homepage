@@ -1,7 +1,7 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'homepage-cache';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 const WORDS_STORE = 'words';
 const TASKS_STORE = 'tasks';
 const QUOTATIONS_STORE = 'quotations';
@@ -234,6 +234,7 @@ export async function cacheQuotations(quotations) {
 				text: quotation.text || quotation.quotation,
 				author: quotation.author || quotation.who,
 				source: quotation.source,
+				url: quotation.url,
 				createdAt: quotation.created_at || timestamp,
 				updatedAt: quotation.updated_at || timestamp,
 				cachedAt: timestamp
@@ -268,6 +269,7 @@ export async function getCachedQuotations() {
 		text: quotation.text,
 		author: quotation.author,
 		source: quotation.source,
+		url: quotation.url,
 		created_at: quotation.createdAt,
 		updated_at: quotation.updatedAt
 	}));
@@ -292,7 +294,8 @@ export async function getCachedRandomQuotation() {
 	return {
 		quotation: quotation.text,
 		who: quotation.author,
-		source: quotation.source
+		source: quotation.source,
+		url: quotation.url
 	};
 }
 
