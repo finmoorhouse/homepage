@@ -2,27 +2,14 @@
 
 A personalized homepage built with SvelteKit that provides various useful information through API endpoints.
 
-## Features
+In particular: a random quotation, a list of tasks due synced from Todoist, and a list of words. Plus the ability to add new words and quotations.
 
-- **Word Definitions**: Look up word definitions
-- **Weather Information**: Get current weather data
-- **Random Facts**: Display interesting facts
-- **Quotes**: Show inspirational quotes
-- **Link Management**: Store and organize useful links
 
-## API Endpoints
-
-- `/api/definition` - Word definition service
-- `/api/fact` - Random fact generator
-- `/api/quotes` - Quote retrieval service
-- `/api/weather` - Weather information
-- `/api/word` - Word service
-
-## Technologies
+## Built with
 
 - [SvelteKit](https://kit.svelte.dev/) - Frontend framework
-- [Supabase](https://supabase.io/) - Backend database and authentication
 - [Axios](https://axios-http.com/) - HTTP client for API requests
+- [IndexedDB](https://www.w3.org/TR/IndexedDB/) - Local storage
 
 ## Getting Started
 
