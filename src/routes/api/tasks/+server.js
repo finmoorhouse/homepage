@@ -7,16 +7,16 @@ export async function GET({ url }) {
 	try {
 		// Fetch tasks directly from Todoist API
 		const apiTasks = await fetchTasksFromTodoist();
-		
+
 		// Filter and return
 		const filteredTasks = filterAndLimitTasks(apiTasks);
-		
+
 		return json({
 			success: true,
 			tasks: filteredTasks,
 			total: filteredTasks.length
 		});
-		
+
 	} catch (error) {
 		console.error('Error in tasks API:', error);
 		return json({ error: 'Failed to fetch tasks from Todoist' }, { status: 500 });
@@ -25,29 +25,50 @@ export async function GET({ url }) {
 
 async function fetchTasksFromTodoist() {
 	const api = new TodoistApi(TODOIST_KEY);
-	
-	// Get all tasks with pagination
+
 	let allTasks = [];
-	let cursor = null;
-	
-	do {
-		const tasksResponse = await api.getTasks(cursor ? { cursor } : {});
-		allTasks = allTasks.concat(tasksResponse.results || []);
-		cursor = tasksResponse.nextCursor;
-	} while (cursor);
-	
-	// Map Todoist tasks to our expected format
-	return allTasks.map(task => ({
-		id: task.id,
-		content: task.content,
-		completed: task.checked,
-		priority: task.priority,
-		url: task.url,
-		due: task.due ? {
-			date: task.due.date,
-			string: task.due.string
-		} : null
-	}));
+	let cursor = undefined;
+
+	try {
+		do {
+			// Pass cursor if it exists, otherwise undefined
+			const response = await api.getTasks(cursor ? { cursor } : undefined);
+
+			// Detect if response is array (simple) or object with results (paginated envelope)
+			let pageTasks = [];
+			let nextCursor = null;
+
+			if (Array.isArray(response)) {
+				pageTasks = response;
+				nextCursor = null;
+			} else if (response && response.results && Array.isArray(response.results)) {
+				pageTasks = response.results;
+				nextCursor = response.nextCursor;
+			}
+
+			if (pageTasks.length > 0) {
+				allTasks = allTasks.concat(pageTasks);
+			}
+
+			cursor = nextCursor;
+		} while (cursor);
+
+		// Map Todoist tasks to our expected format
+		return allTasks.map(task => ({
+			id: task.id,
+			content: task.content,
+			completed: task.checked,
+			priority: task.priority,
+			url: task.url,
+			due: task.due ? {
+				date: task.due.date,
+				string: task.due.string
+			} : null
+		}));
+	} catch (error) {
+		console.error('Error fetching tasks from Todoist:', error);
+		throw error;
+	}
 }
 
 function filterAndLimitTasks(tasks) {

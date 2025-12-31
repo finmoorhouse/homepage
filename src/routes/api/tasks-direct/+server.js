@@ -16,42 +16,67 @@ function filterAndLimitTasks(tasks) {
 
 async function fetchTasksFromTodoist() {
 	const api = new TodoistApi(TODOIST_KEY);
-	
-	// Get all tasks with pagination
+
 	let allTasks = [];
-	let cursor = null;
-	
-	do {
-		const tasksResponse = await api.getTasks(cursor ? { cursor } : {});
-		allTasks = allTasks.concat(tasksResponse.results || []);
-		cursor = tasksResponse.nextCursor;
-	} while (cursor);
-	
-	// Map Todoist tasks to our expected format
-	return allTasks.map(task => ({
-		id: task.id,
-		content: task.content,
-		completed: task.checked,
-		priority: task.priority,
-		url: task.url,
-		due: task.due ? {
-			date: task.due.date,
-			string: task.due.string
-		} : null
-	}));
+	let cursor = undefined;
+
+	try {
+		do {
+			// Pass cursor if it exists, otherwise empty object or undefined
+			const response = await api.getTasks(cursor ? { cursor } : undefined);
+
+			// Detect if response is array (simple) or object with results (paginated envelope)
+			let pageTasks = [];
+			let nextCursor = null;
+
+			if (Array.isArray(response)) {
+				pageTasks = response;
+				nextCursor = null;
+			} else if (response && response.results && Array.isArray(response.results)) {
+				pageTasks = response.results;
+				nextCursor = response.nextCursor;
+			} else {
+				// Unexpected format
+				console.warn('Unexpected Todoist API response format:', response);
+			}
+
+			if (pageTasks.length > 0) {
+				allTasks = allTasks.concat(pageTasks);
+			}
+
+			cursor = nextCursor;
+		} while (cursor);
+
+		// Map Todoist tasks to our expected format
+		// Note: Debugging showed 'checked' property is present, 'isCompleted' was missing
+		return allTasks.map(task => ({
+			id: task.id,
+			content: task.content,
+			completed: task.checked,
+			priority: task.priority,
+			url: task.url,
+			due: task.due ? {
+				date: task.due.date,
+				string: task.due.string
+			} : null
+		}));
+	} catch (error) {
+		console.error('Error fetching tasks from Todoist:', error);
+		throw error;
+	}
 }
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ url }) {
 	try {
 		const all = url.searchParams.get('all') === 'true';
-		
+
 		console.log('Fetching tasks directly from Todoist API:', all ? 'ALL tasks' : 'filtered tasks');
-		
+
 		// Fetch all tasks from Todoist API
 		const allTasks = await fetchTasksFromTodoist();
 		console.log('Received from Todoist API:', allTasks.length, 'total tasks');
-		
+
 		if (all) {
 			// Return all tasks for caching
 			return json({
@@ -67,7 +92,7 @@ export async function GET({ url }) {
 			// Return filtered tasks for display
 			const filteredTasks = filterAndLimitTasks(allTasks);
 			console.log('Filtered to', filteredTasks.length, 'due/overdue tasks');
-			
+
 			return json({
 				tasks: filteredTasks,
 				meta: {
@@ -78,10 +103,10 @@ export async function GET({ url }) {
 				}
 			});
 		}
-		
+
 	} catch (error) {
 		console.error('Error in direct tasks API:', error);
-		return json({ 
+		return json({
 			error: 'Failed to fetch tasks from Todoist',
 			tasks: [],
 			meta: { totalCount: 0, filteredCount: 0, source: 'error' }
