@@ -369,6 +369,41 @@
 		}
 	}
 
+	// ---------------------------------------------------------
+	// Time Visualization Logic
+	// ---------------------------------------------------------
+
+	const START_DATE_EPOCH = new Date('2026-01-01T00:00:00').getTime();
+	function getOrdinal(n) {
+		const s = ['th', 'st', 'nd', 'rd'];
+		const v = n % 100;
+		return n + (s[(v - 20) % 10] || s[v] || s[0]);
+	}
+
+	// Calculate time passed
+	let daysPassedStr = '';
+	let currentDayOfYearIndex = 0; // 0-364
+
+	function updateTimeVisualization() {
+		const now = new Date();
+		// Reset to midnight for day calculation to be consistent
+		const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+		const start = START_DATE_EPOCH;
+
+		const diffTime = today - start;
+		const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+		// If today is Jan 1, diffDays is 0.
+		const dayNumber = diffDays + 1;
+
+		currentDayOfYearIndex = diffDays; // 0-indexed for the grid
+
+		daysPassedStr = `${getOrdinal(dayNumber)} day of the year`;
+	}
+
+	// Run initially
+	updateTimeVisualization();
+
 	// Function to convert markdown links to HTML
 	function parseMarkdownLinks(text) {
 		return text.replace(
@@ -622,6 +657,25 @@
 			>
 				{isSyncingWords ? 'Syncing...' : 'Sync words'}
 			</button>
+		</div>
+	</div>
+</span>
+
+<span class="flex justify-center w-full">
+	<div class="m-5 p-5 border border-flexoki-ui min-h-[40px] inline w-2xl">
+		<div class="flex flex-col mb-4">
+			<h3 class="text-xl font-serif text-flexoki-tx">{daysPassedStr}</h3>
+		</div>
+
+		<div class="flex flex-wrap gap-1 mt-6">
+			{#each Array(365) as _, i}
+				<div
+					class="w-3 h-3 {i <= currentDayOfYearIndex
+						? 'bg-flexoki-tx-2'
+						: 'bg-flexoki-bg-2 border border-flexoki-ui'} transition-colors duration-300 hover:scale-125"
+					title="Day {i + 1}"
+				></div>
+			{/each}
 		</div>
 	</div>
 </span>
