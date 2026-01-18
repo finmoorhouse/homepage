@@ -384,6 +384,14 @@
 	let daysPassedStr = '';
 	let currentDayOfYearIndex = 0; // 0-364
 
+	// Sun path visualization
+	let currentHourDecimal = 0; // 0-24 with decimal for minutes
+	let currentTimeStr = '';
+	let sfHourDecimal = 0; // SF is 8 hours behind
+	let sfTimeStr = '';
+	let delhiHourDecimal = 0; // Delhi is 5.5 hours ahead
+	let delhiTimeStr = '';
+
 	function updateTimeVisualization() {
 		const now = new Date();
 		// Reset to midnight for day calculation to be consistent
@@ -399,7 +407,58 @@
 		currentDayOfYearIndex = diffDays; // 0-indexed for the grid
 
 		daysPassedStr = `${getOrdinal(dayNumber)} day of the year`;
+
+		// Update current time for sun path (hours as decimal, e.g., 14.5 = 2:30 PM)
+		currentHourDecimal = now.getHours() + now.getMinutes() / 60;
+
+		// Format current time string
+		const hours = now.getHours().toString().padStart(2, '0');
+		const minutes = now.getMinutes().toString().padStart(2, '0');
+		currentTimeStr = `${hours}:${minutes}`;
+
+		// Calculate SF time (8 hours behind)
+		sfHourDecimal = (currentHourDecimal - 8 + 24) % 24;
+		const sfHours = Math.floor(sfHourDecimal).toString().padStart(2, '0');
+		const sfMinutes = Math.floor((sfHourDecimal % 1) * 60).toString().padStart(2, '0');
+		sfTimeStr = `${sfHours}:${sfMinutes}`;
+
+		// Calculate Delhi time (5.5 hours ahead)
+		delhiHourDecimal = (currentHourDecimal + 5.5) % 24;
+		const delhiHours = Math.floor(delhiHourDecimal).toString().padStart(2, '0');
+		const delhiMinutes = Math.floor((delhiHourDecimal % 1) * 60).toString().padStart(2, '0');
+		delhiTimeStr = `${delhiHours}:${delhiMinutes}`;
 	}
+
+	// Sun path calculation: y = sin((hour - 6) * π / 12)
+	// This gives: sunrise at 6am, noon at peak, sunset at 6pm
+	function getSunY(hour) {
+		return Math.sin(((hour - 6) * Math.PI) / 12);
+	}
+
+	// Generate SVG path for the sine wave (vertical orientation)
+	// Time flows top to bottom, sun position oscillates left/right
+	const SVG_WIDTH = 60;
+	const SVG_HEIGHT = 120;
+	const CENTER_X = SVG_WIDTH / 2;
+	const AMPLITUDE = 20;
+
+	function generateSunPath() {
+		const points = [];
+		for (let h = 0; h <= 24; h += 0.25) {
+			const y = (h / 24) * SVG_HEIGHT;
+			const x = CENTER_X + getSunY(h) * AMPLITUDE; // Right = day, left = night
+			points.push(`${x},${y}`);
+		}
+		return `M ${points.join(' L ')}`;
+	}
+
+	$: sunPathD = generateSunPath();
+	$: currentSunY = (currentHourDecimal / 24) * SVG_HEIGHT;
+	$: currentSunX = CENTER_X + getSunY(currentHourDecimal) * AMPLITUDE;
+	$: sfSunY = (sfHourDecimal / 24) * SVG_HEIGHT;
+	$: sfSunX = CENTER_X + getSunY(sfHourDecimal) * AMPLITUDE;
+	$: delhiSunY = (delhiHourDecimal / 24) * SVG_HEIGHT;
+	$: delhiSunX = CENTER_X + getSunY(delhiHourDecimal) * AMPLITUDE;
 
 	// Run initially
 	updateTimeVisualization();
@@ -661,8 +720,67 @@
 	</div>
 </span>
 
-<span class="flex justify-center w-full">
-	<div class="m-5 p-5 border border-flexoki-ui min-h-[40px] inline w-2xl">
+<div class="flex justify-center w-full flex-col md:flex-row">
+	<div class="m-5 p-3 border border-flexoki-ui min-h-[40px] w-xs flex items-center justify-center">
+		<div class="flex items-center">
+			<!-- Dynamic time labels (left) -->
+			<div class="relative h-72 w-14 text-xs mr-1">
+				<span
+					class="absolute right-0 -translate-y-1/2 text-flexoki-tx-2 whitespace-nowrap"
+					style="top: {(currentHourDecimal / 24) * 100}%"
+				>{currentTimeStr} UK</span>
+				<span
+					class="absolute right-0 -translate-y-1/2 text-flexoki-tx-3 whitespace-nowrap"
+					style="top: {(sfHourDecimal / 24) * 100}%"
+				>{sfTimeStr} SF</span>
+				<span
+					class="absolute right-0 -translate-y-1/2 text-flexoki-tx-3 whitespace-nowrap"
+					style="top: {(delhiHourDecimal / 24) * 100}%"
+				>{delhiTimeStr} IN</span>
+			</div>
+
+			<svg viewBox="0 0 60 120" class="h-72 w-auto">
+				<!-- Night background (left of center) -->
+				<rect x="0" y="0" width="30" height="120" fill="currentColor" class="text-flexoki-bg-2" />
+
+				<!-- Vertical horizon line (center) -->
+				<line x1="30" y1="0" x2="30" y2="120" stroke="currentColor" stroke-width="0.5" class="text-flexoki-ui-2" />
+
+				<!-- Dotted horizontal time markers -->
+				<line x1="0" y1="0" x2="60" y2="0" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2,2" class="text-flexoki-ui-2" />
+				<line x1="0" y1="30" x2="60" y2="30" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2,2" class="text-flexoki-ui-2" />
+				<line x1="0" y1="60" x2="60" y2="60" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2,2" class="text-flexoki-ui-2" />
+				<line x1="0" y1="90" x2="60" y2="90" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2,2" class="text-flexoki-ui-2" />
+				<line x1="0" y1="120" x2="60" y2="120" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2,2" class="text-flexoki-ui-2" />
+
+				<!-- UK time indicator (solid line, ends at sine wave) -->
+				<line x1="0" y1={currentSunY} x2={currentSunX} y2={currentSunY} stroke="currentColor" stroke-width="0.5" class="text-flexoki-tx-2" />
+
+				<!-- SF time indicator (solid line, ends at sine wave) -->
+				<line x1="0" y1={sfSunY} x2={sfSunX} y2={sfSunY} stroke="currentColor" stroke-width="0.5" class="text-flexoki-tx-3" />
+
+				<!-- Delhi time indicator (solid line, ends at sine wave) -->
+				<line x1="0" y1={delhiSunY} x2={delhiSunX} y2={delhiSunY} stroke="currentColor" stroke-width="0.5" class="text-flexoki-tx-3" />
+
+				<!-- Sun path sine wave (drawn on top of time lines) -->
+				<path d={sunPathD} fill="none" stroke="currentColor" stroke-width="1" class="text-flexoki-tx-2" />
+
+				<!-- Current sun position -->
+				<circle cx={currentSunX} cy={currentSunY} r="2" fill="currentColor" class="text-flexoki-tx-2" />
+			</svg>
+
+			<!-- Fixed time scale (right) -->
+			<div class="flex flex-col justify-between text-xs text-flexoki-tx-3 ml-2 h-72">
+				<span>00:00</span>
+				<span>06:00</span>
+				<span>12:00</span>
+				<span>18:00</span>
+				<span>24:00</span>
+			</div>
+		</div>
+	</div>
+
+	<div class="m-5 p-5 border border-flexoki-ui min-h-[40px] w-md">
 		<div class="flex flex-col mb-4">
 			<h3 class="text-xl font-serif text-flexoki-tx">{daysPassedStr}</h3>
 		</div>
@@ -678,7 +796,7 @@
 			{/each}
 		</div>
 	</div>
-</span>
+</div>
 
 <div class="flex justify-center w-full flex-col md:flex-row">
 	<div class="m-5 p-5 border border-flexoki-ui min-h-[40px] max-w-[600px] w-xs">
