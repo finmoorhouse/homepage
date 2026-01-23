@@ -1,10 +1,11 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'homepage-cache';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const WORDS_STORE = 'words';
 const TASKS_STORE = 'tasks';
 const QUOTATIONS_STORE = 'quotations';
+const DONETHAT_STORE = 'donethat';
 
 let dbPromise;
 
@@ -42,6 +43,13 @@ function getDB() {
 					// Create indexes for easier querying
 					quotationsStore.createIndex('author', 'author');
 					quotationsStore.createIndex('cachedAt', 'cachedAt');
+				}
+
+				// Create donethat store (new in version 5)
+				if (oldVersion < 5 && !db.objectStoreNames.contains(DONETHAT_STORE)) {
+					db.createObjectStore(DONETHAT_STORE, {
+						keyPath: 'id'
+					});
 				}
 			}
 		});
@@ -339,5 +347,61 @@ export async function getQuotationsCacheInfo() {
 	return {
 		count,
 		lastCached: lastCached ? lastCached.toISOString() : null
+	};
+}
+
+// DoneThat functions
+export async function cacheDoneThat(data) {
+	const db = await getDB();
+	const tx = db.transaction(DONETHAT_STORE, 'readwrite');
+	const store = tx.objectStore(DONETHAT_STORE);
+
+	const timestamp = new Date().toISOString();
+
+	// Store the full API response with metadata
+	const cacheEntry = {
+		id: 'latest', // Single entry, always overwritten
+		data: data,
+		cachedAt: timestamp
+	};
+
+	await store.put(cacheEntry);
+	await tx.done;
+}
+
+export async function getCachedDoneThat() {
+	const db = await getDB();
+	const tx = db.transaction(DONETHAT_STORE, 'readonly');
+	const store = tx.objectStore(DONETHAT_STORE);
+
+	const cached = await store.get('latest');
+
+	if (!cached) {
+		return null;
+	}
+
+	return {
+		data: cached.data,
+		cachedAt: cached.cachedAt
+	};
+}
+
+export async function clearDoneThatCache() {
+	const db = await getDB();
+	const tx = db.transaction(DONETHAT_STORE, 'readwrite');
+	const store = tx.objectStore(DONETHAT_STORE);
+	await store.clear();
+	await tx.done;
+}
+
+export async function getDoneThatCacheInfo() {
+	const cached = await getCachedDoneThat();
+
+	if (!cached) {
+		return { lastCached: null };
+	}
+
+	return {
+		lastCached: cached.cachedAt
 	};
 }

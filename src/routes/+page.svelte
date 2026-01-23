@@ -11,7 +11,9 @@
 		getCachedRandomQuotation,
 		cacheQuotations,
 		getQuotationsCacheInfo,
-		getCachedQuotationCount
+		getCachedQuotationCount,
+		getCachedDoneThat,
+		cacheDoneThat
 	} from '$lib/cache/words.js';
 
 	// Accept any unknown props to avoid SvelteKit warnings
@@ -42,6 +44,13 @@
 	let syncMessage = null;
 	let wordSyncMessage = null;
 	let taskRefreshMessage = null;
+
+	// DoneThat time tracking
+	let doneThatData = null;
+	let isLoadingDoneThat = false;
+	let doneThatError = null;
+	let doneThatCachedAt = null;
+	let doneThatSyncMessage = null;
 
 	async function getWord() {
 		try {
@@ -370,6 +379,88 @@
 	}
 
 	// ---------------------------------------------------------
+	// DoneThat Time Tracking
+	// ---------------------------------------------------------
+
+	async function getDoneThatData() {
+		try {
+			// Try to load from IndexedDB cache first
+			const cached = await getCachedDoneThat();
+
+			if (cached) {
+				console.log('📱 DoneThat loaded from IndexedDB cache');
+				doneThatData = cached.data;
+				doneThatCachedAt = cached.cachedAt;
+			} else {
+				console.log('💾 No cached DoneThat data found, fetching from API...');
+				await syncDoneThat();
+			}
+		} catch (error) {
+			console.error('❌ Error loading DoneThat:', error);
+			await syncDoneThat();
+		}
+	}
+
+	async function syncDoneThat() {
+		isLoadingDoneThat = true;
+		doneThatError = null;
+		doneThatSyncMessage = null;
+		try {
+			console.log('📡 Fetching DoneThat time tracking data...');
+			const response = await fetch('/api/donethat?days=7');
+			const data = await response.json();
+
+			if (data.error) {
+				console.error('DoneThat API error:', data.error);
+				doneThatError = data.error;
+				doneThatData = null;
+				doneThatSyncMessage = `Sync failed: ${data.error}`;
+			} else if (data.success && data.rows) {
+				console.log('✅ Received DoneThat data:', data.rowCount, 'days');
+				doneThatData = data;
+				// Cache the data
+				await cacheDoneThat(data);
+				doneThatCachedAt = new Date().toISOString();
+				doneThatSyncMessage = `Synced ${data.rowCount} days from DoneThat`;
+			} else {
+				doneThatError = 'Unexpected response format';
+				doneThatData = null;
+			}
+		} catch (error) {
+			console.error('❌ Error fetching DoneThat data:', error);
+			doneThatError = error.message;
+			doneThatData = null;
+			doneThatSyncMessage = `Sync failed: ${error.message}`;
+		} finally {
+			isLoadingDoneThat = false;
+		}
+	}
+
+	// Format minutes as hours and minutes
+	function formatDuration(minutes) {
+		const hours = Math.floor(minutes / 60);
+		const mins = minutes % 60;
+		if (hours === 0) return `${mins}m`;
+		if (mins === 0) return `${hours}h`;
+		return `${hours}h ${mins}m`;
+	}
+
+	// Get day name from date string (YYYY-MM-DD)
+	function getDayName(dateStr) {
+		const date = new Date(dateStr + 'T00:00:00');
+		return date.toLocaleDateString('en-GB', { weekday: 'short' });
+	}
+
+	// Get focus minutes from a day's categories
+	function getFocusMinutes(day) {
+		const focusCat = day.categories?.find(c => c.name === 'Focus work');
+		return focusCat?.minutes || 0;
+	}
+
+	// Track whether detailed view is expanded
+	let doneThatExpanded = false;
+
+	// ---------------------------------------------------------
 	// Time Visualization Logic
 	// ---------------------------------------------------------
 
@@ -429,8 +520,48 @@
 		delhiTimeStr = `${delhiHours}:${delhiMinutes}`;
 	}
 
-	// Sun path calculation: y = sin((hour - 6) * π / 12)
-	// This gives: sunrise at 6am, noon at peak, sunset at 6pm
+	// Calculate sunrise and sunset times for London
+	// Using standard solar position algorithms
+	const LONDON_LAT = 51.5074; // degrees North
+	const LONDON_LON = -0.1278; // degrees West
+
+	function calculateSunTimes(date) {
+		const dayOfYear = Math.floor(
+			(date - new Date(date.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24)
+		);
+
+		// Solar declination angle (in radians)
+		const declination =
+			(23.45 * Math.PI) / 180 * Math.sin(((2 * Math.PI) / 365) * (284 + dayOfYear));
+
+		const latRad = (LONDON_LAT * Math.PI) / 180;
+
+		// Hour angle at sunrise/sunset (when sun crosses horizon)
+		const cosHourAngle = -Math.tan(latRad) * Math.tan(declination);
+
+		// Clamp for polar day/night (shouldn't happen in London but safety check)
+		const clampedCos = Math.max(-1, Math.min(1, cosHourAngle));
+		const hourAngle = Math.acos(clampedCos);
+
+		// Convert hour angle to hours (15 degrees = 1 hour)
+		const hourAngleHours = (hourAngle * 180) / Math.PI / 15;
+
+		// Solar noon occurs at 12:00 + longitude correction + equation of time
+		// For simplicity, using approximate solar noon at 12:00 UTC
+		// London is close to 0° longitude so this is reasonably accurate
+		const solarNoon = 12;
+
+		const sunrise = solarNoon - hourAngleHours;
+		const sunset = solarNoon + hourAngleHours;
+
+		return { sunrise, sunset, dayLength: sunset - sunrise };
+	}
+
+	// Reactive sun times based on current date
+	let sunTimes = calculateSunTimes(new Date());
+
+	// Sun path calculation - smooth sine wave, always the same shape
+	// Peaks at noon (hour 12), crosses zero at 6am and 6pm
 	function getSunY(hour) {
 		return Math.sin(((hour - 6) * Math.PI) / 12);
 	}
@@ -451,6 +582,12 @@
 		}
 		return `M ${points.join(' L ')}`;
 	}
+
+	// The horizon line position shifts based on day length
+	// At equinox (sunrise 6am), horizon is at center (x=30)
+	// In winter (later sunrise like 8am), horizon moves right (more night)
+	// In summer (earlier sunrise like 4am), horizon moves left (more day)
+	$: horizonX = CENTER_X + getSunY(sunTimes.sunrise) * AMPLITUDE;
 
 	$: sunPathD = generateSunPath();
 	$: currentSunY = (currentHourDecimal / 24) * SVG_HEIGHT;
@@ -477,6 +614,7 @@
 		await getQuotation();
 		await getWord();
 		await getTasks(); // This will load from cache if available
+		await getDoneThatData(); // Load time tracking data
 	});
 </script>
 
@@ -663,6 +801,115 @@
 	</div>
 </span>
 
+<!-- DoneThat Time Tracking Panel -->
+<span class="flex justify-center w-full">
+	<div class="m-5 p-5 border border-flexoki-ui min-h-[40px] inline w-2xl">
+		<h3 class="text-lg font-medium mb-4">Time Tracking (Last 7 Days)</h3>
+
+		{#if isLoadingDoneThat}
+			<p class="text-flexoki-tx-2">Loading time tracking data...</p>
+		{:else if doneThatError}
+			<p class="text-flexoki-re">Error: {doneThatError}</p>
+		{:else if doneThatData && doneThatData.rows}
+			<!-- Summary stats -->
+			{@const totalFocusMinutes = doneThatData.rows.reduce((sum, day) => sum + getFocusMinutes(day), 0)}
+			{@const avgFocusMinutes = Math.round(totalFocusMinutes / doneThatData.rows.length)}
+			{@const maxFocusMinutes = Math.max(...doneThatData.rows.map(getFocusMinutes))}
+			<div class="mb-4 text-sm text-flexoki-tx-2">
+				<span>Focus total: <b>{formatDuration(totalFocusMinutes)}</b></span>
+				<span class="mx-2">|</span>
+				<span>Daily avg: <b>{formatDuration(avgFocusMinutes)}</b></span>
+			</div>
+
+			<!-- Bar chart of focus hours -->
+			<div class="space-y-1 mb-4">
+				{#each doneThatData.rows.slice().reverse() as day}
+					{@const focusMins = getFocusMinutes(day)}
+					{@const barWidth = maxFocusMinutes > 0 ? (focusMins / maxFocusMinutes) * 100 : 0}
+					<div class="flex items-center gap-2 text-sm">
+						<span class="w-8 text-flexoki-tx-3 text-xs">{getDayName(day.date)}</span>
+						<div class="flex-1 h-4 bg-flexoki-bg-2 border border-flexoki-ui">
+							<div
+								class="h-full bg-flexoki-tx-2"
+								style="width: {barWidth}%"
+							></div>
+						</div>
+						<span class="w-12 text-right text-xs text-flexoki-tx-3">{formatDuration(focusMins)}</span>
+					</div>
+				{/each}
+			</div>
+
+			<!-- Expandable detailed breakdown -->
+			<button
+				class="text-sm text-flexoki-tx-3 hover:text-flexoki-tx-2 cursor-pointer mb-2"
+				on:click={() => doneThatExpanded = !doneThatExpanded}
+			>
+				{doneThatExpanded ? '▼ Hide details' : '▶ Show details'}
+			</button>
+
+			{#if doneThatExpanded}
+				<div class="space-y-4 mt-2">
+					{#each doneThatData.rows.slice().reverse() as day, i}
+						<div class="pb-3 {i < doneThatData.rows.length - 1 ? 'border-b border-flexoki-ui' : ''}">
+							<div class="flex justify-between items-center mb-2">
+								<span class="font-medium">{getDayName(day.date)} {day.date}</span>
+								<span class="text-flexoki-tx-2">{formatDuration(day.duration)}</span>
+							</div>
+
+							{#if day.tasks && day.tasks.length > 0}
+								<div class="mb-2">
+									<ul class="text-sm text-flexoki-tx-2 space-y-0.5">
+										{#each day.tasks as task}
+											<li class="flex justify-between">
+												<span>{task.title}</span>
+												<span class="text-flexoki-tx-3 ml-2">{formatDuration(task.duration)}</span>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
+
+							{#if day.categories && day.categories.length > 0}
+								<div class="flex flex-wrap gap-1 text-xs">
+									{#each day.categories as cat}
+										<span class="px-1.5 py-0.5 bg-flexoki-bg-2 border border-flexoki-ui">
+											{cat.name}: {formatDuration(cat.minutes)}
+										</span>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
+		{:else}
+			<p class="text-flexoki-tx-2">No time tracking data available</p>
+		{/if}
+
+		<hr class="my-6 border-flexoki-ui" />
+
+		{#if doneThatSyncMessage}
+			<div class="mb-4 p-2 border border-flexoki-ui bg-flexoki-bg-2">
+				<span
+					class="text-sm {doneThatSyncMessage.includes('Sync failed')
+						? 'text-flexoki-re'
+						: 'text-flexoki-gr'}">{doneThatSyncMessage}</span
+				>
+			</div>
+		{/if}
+
+		<button
+			class="px-6 py-2 text-flexoki-black border-1 border-flexoki-ui hover:border-flexoki-ui-2 cursor-pointer {isLoadingDoneThat
+				? 'opacity-50'
+				: ''}"
+			on:click={syncDoneThat}
+			disabled={isLoadingDoneThat}
+		>
+			{isLoadingDoneThat ? 'Syncing...' : 'Sync time tracking'}
+		</button>
+	</div>
+</span>
+
 <span class="flex justify-center w-full">
 	<div class="m-5 p-5 border border-flexoki-ui min-h-[40px] inline w-2xl">
 		{#if wordData}
@@ -740,11 +987,11 @@
 			</div>
 
 			<svg viewBox="0 0 60 120" class="h-72 w-auto">
-				<!-- Night background (left of center) -->
-				<rect x="0" y="0" width="30" height="120" fill="currentColor" class="text-flexoki-bg-2" />
+				<!-- Night background (left of horizon line) -->
+				<rect x="0" y="0" width={horizonX} height="120" fill="currentColor" class="text-flexoki-bg-2" />
 
-				<!-- Vertical horizon line (center) -->
-				<line x1="30" y1="0" x2="30" y2="120" stroke="currentColor" stroke-width="0.5" class="text-flexoki-ui-2" />
+				<!-- Vertical horizon line (shifts based on day length) -->
+				<line x1={horizonX} y1="0" x2={horizonX} y2="120" stroke="currentColor" stroke-width="0.5" class="text-flexoki-ui-2" />
 
 				<!-- Dotted horizontal time markers -->
 				<line x1="0" y1="0" x2="60" y2="0" stroke="currentColor" stroke-width="0.5" stroke-dasharray="2,2" class="text-flexoki-ui-2" />
