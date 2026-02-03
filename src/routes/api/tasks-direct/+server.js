@@ -2,19 +2,7 @@ import { json } from '@sveltejs/kit';
 import { TodoistApi } from '@doist/todoist-api-typescript';
 import { TODOIST_KEY } from '$env/static/private';
 
-function filterAndLimitTasks(tasks) {
-	// Filter tasks that are due today or overdue (must have a due date)
-	const today = new Date().toISOString().split('T')[0];
-	const dueTasks = tasks.filter(task => {
-		if (!task.due) return false; // Exclude tasks without due dates
-		return task.due.date <= today; // Include today and overdue tasks
-	});
-
-	// Take only the first 16 tasks to avoid cluttering the interface
-	return dueTasks.slice(0, 16);
-}
-
-async function fetchTasksFromTodoist() {
+async function fetchTasksFromTodoist(filterQuery = null) {
 	const api = new TodoistApi(TODOIST_KEY);
 
 	let allTasks = [];
@@ -22,8 +10,14 @@ async function fetchTasksFromTodoist() {
 
 	try {
 		do {
-			// Pass cursor if it exists, otherwise empty object or undefined
-			const response = await api.getTasks(cursor ? { cursor } : undefined);
+			let response;
+			if (filterQuery) {
+				// Use getTasksByFilter for filtered queries
+				response = await api.getTasksByFilter({ query: filterQuery, cursor: cursor || undefined });
+			} else {
+				// Use getTasks for fetching all tasks
+				response = await api.getTasks(cursor ? { cursor } : undefined);
+			}
 
 			// Detect if response is array (simple) or object with results (paginated envelope)
 			let pageTasks = [];
@@ -73,12 +67,11 @@ export async function GET({ url }) {
 
 		console.log('Fetching tasks directly from Todoist API:', all ? 'ALL tasks' : 'filtered tasks');
 
-		// Fetch all tasks from Todoist API
-		const allTasks = await fetchTasksFromTodoist();
-		console.log('Received from Todoist API:', allTasks.length, 'total tasks');
-
 		if (all) {
-			// Return all tasks for caching
+			// Fetch all tasks for caching
+			const allTasks = await fetchTasksFromTodoist();
+			console.log('Received from Todoist API:', allTasks.length, 'total tasks');
+
 			return json({
 				tasks: allTasks,
 				meta: {
@@ -89,15 +82,18 @@ export async function GET({ url }) {
 				}
 			});
 		} else {
-			// Return filtered tasks for display
-			const filteredTasks = filterAndLimitTasks(allTasks);
-			console.log('Filtered to', filteredTasks.length, 'due/overdue tasks');
+			// Use Todoist filter to only fetch today & overdue tasks
+			const filteredTasks = await fetchTasksFromTodoist('today | overdue');
+			console.log('Received from Todoist API:', filteredTasks.length, 'today/overdue tasks');
+
+			// Still apply our limit
+			const limitedTasks = filteredTasks.slice(0, 16);
 
 			return json({
-				tasks: filteredTasks,
+				tasks: limitedTasks,
 				meta: {
-					totalCount: allTasks.length,
-					filteredCount: filteredTasks.length,
+					totalCount: filteredTasks.length,
+					filteredCount: limitedTasks.length,
 					source: 'todoist-direct',
 					fetchedAll: false
 				}

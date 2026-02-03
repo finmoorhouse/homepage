@@ -8,6 +8,8 @@ This is Fin's personal homepage - a SvelteKit web application that provides a pe
 
 - **Quotations Display**: Shows inspirational quotes with attribution and sources
 - **Word Definitions**: Retrieves and displays word definitions with the ability to add new words
+- **Time Tracking**: DoneThat integration showing focus time vs total time with interactive bar charts
+- **Task Management**: Todoist integration for today/overdue tasks
 - **Weather Information**: Displays current weather for Oxford
 - **Google Sheets Integration**: Uses Google Apps Script APIs to manage data
 
@@ -32,9 +34,12 @@ src/
 │       ├── definition/        # Word definition API endpoint
 │       ├── quotation/         # Quotation management API
 │       ├── weather/           # Weather data API
-│       └── word/              # Word management API (Google Sheets)
+│       ├── word/              # Word management API (Google Sheets)
+│       ├── donethat/          # DoneThat time tracking API
+│       └── tasks-direct/      # Todoist tasks API
 ├── lib/
-└── app.css                    # Global styles
+│   └── cache/                 # IndexedDB caching utilities
+└── app.css                    # Global styles (includes dark mode variables)
 ```
 
 ## API Endpoints
@@ -43,12 +48,17 @@ src/
 - `GET/POST /api/quotation` - Manage quotations database
 - `GET /api/weather?city=Oxford` - Get weather information
 - `GET /api/definition` - Word definition lookup
+- `GET /api/donethat?days=7` - Fetch time tracking data from DoneThat API
+- `GET /api/tasks-direct` - Fetch today/overdue tasks from Todoist (uses `getTasksByFilter`)
+- `GET /api/tasks-direct?all=true` - Fetch all tasks from Todoist (for caching)
 
 ## External Dependencies
 
 - **Google Apps Script**: Backend API for word and quotation management
 - **Weather API**: Third-party weather service
 - **Google Sheets**: Data storage for words and quotations
+- **DoneThat API**: Time tracking data (`api.donethat.ai/report`)
+- **Todoist API**: Task management via `@doist/todoist-api-typescript` SDK
 
 ## Development Commands
 
@@ -60,16 +70,21 @@ src/
 
 ## Environment Variables
 
-The project uses environment variables for API URLs:
+The project uses environment variables for API keys and URLs:
 - `WORD_API_URL` - Google Apps Script endpoint for word management
+- `DONETHAT_KEY` - API key for DoneThat time tracking
+- `TODOIST_KEY` - API key for Todoist task management
 
 ## Design System
 
-The application uses the Flexoki color scheme with custom CSS classes like:
+The application uses the Flexoki color scheme with CSS variables that automatically adapt to dark/light mode (via `.dark` class). Key classes:
+- `bg-flexoki-white` - Page background (use for solid backgrounds that adapt to theme)
 - `flexoki-ui`, `flexoki-ui-2` - Border colors
-- `flexoki-black`, `flexoki-tx-2` - Text colors
-- `flexoki-bg-2` - Background colors
+- `flexoki-black`, `flexoki-tx-2`, `flexoki-tx-3` - Text colors (primary, secondary, muted)
+- `flexoki-bg-2` - Secondary background color
 - `flexoki-re`, `flexoki-gr` - Error and success colors
+
+Colors are defined as CSS variables in `app.css` with both light and dark mode values.
 
 ## Form Handling
 

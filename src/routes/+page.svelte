@@ -299,20 +299,20 @@
 		isRefreshingTasks = true;
 		taskRefreshMessage = null;
 		try {
-			console.log('🔄 Syncing tasks directly from Todoist API...');
+			console.log('🔄 Syncing today/overdue tasks from Todoist API...');
 
-			// Fetch ALL tasks directly from Todoist and cache them
-			const totalCount = await cacheAllTasksFromAPI();
+			// Fetch only today/overdue tasks (uses Todoist filter server-side)
+			const response = await fetch('/api/tasks-direct');
+			const apiData = await response.json();
 
-			// Now get tasks from the freshly populated cache to display
-			console.log('🎲 Getting tasks from freshly synced cache for display...');
-			const cachedTasks = await getCachedTasks();
-			if (cachedTasks.length > 0) {
-				console.log('✅ Displaying', cachedTasks.length, 'tasks from synced cache');
-				splitAndDisplayTasks(cachedTasks);
-				taskRefreshMessage = `Successfully synced ${totalCount} tasks from Todoist`;
+			if (apiData.tasks && apiData.tasks.length > 0) {
+				console.log('✅ Received', apiData.tasks.length, 'today/overdue tasks from Todoist');
+				await cacheTasks(apiData.tasks);
+				splitAndDisplayTasks(apiData.tasks);
+				taskRefreshMessage = `Synced ${apiData.tasks.length} tasks from Todoist`;
 			} else {
-				taskRefreshMessage = `Sync completed but no tasks available for display`;
+				taskRefreshMessage = `No today/overdue tasks found`;
+				splitAndDisplayTasks([]);
 			}
 		} catch (error) {
 			console.error('❌ Sync tasks failed:', error);
@@ -445,6 +445,13 @@
 		return `${hours}h ${mins}m`;
 	}
 
+	// Format minutes as decimal hours (e.g., 6.25h)
+	function formatDecimalHours(minutes) {
+		const hours = minutes / 60;
+		if (hours < 0.1) return '0h';
+		return `${hours.toFixed(2).replace(/\.?0+$/, '')}h`;
+	}
+
 	// Get day name from date string (YYYY-MM-DD)
 	function getDayName(dateStr) {
 		const date = new Date(dateStr + 'T00:00:00');
@@ -459,6 +466,22 @@
 
 	// Track whether detailed view is expanded
 	let doneThatExpanded = false;
+
+	// Tooltip state for DoneThat chart
+	let hoveredDay = null;
+	let tooltipX = 0;
+	let tooltipY = 0;
+
+	function handleDayHover(event, day) {
+		hoveredDay = day;
+		const rect = event.currentTarget.getBoundingClientRect();
+		tooltipX = rect.left;
+		tooltipY = rect.top - 10;
+	}
+
+	function handleDayLeave() {
+		hoveredDay = null;
+	}
 
 	// ---------------------------------------------------------
 	// Time Visualization Logic
@@ -813,31 +836,93 @@
 		{:else if doneThatData && doneThatData.rows}
 			<!-- Summary stats -->
 			{@const totalFocusMinutes = doneThatData.rows.reduce((sum, day) => sum + getFocusMinutes(day), 0)}
+			{@const totalTrackedMinutes = doneThatData.rows.reduce((sum, day) => sum + (day.duration || 0), 0)}
 			{@const avgFocusMinutes = Math.round(totalFocusMinutes / doneThatData.rows.length)}
-			{@const maxFocusMinutes = Math.max(...doneThatData.rows.map(getFocusMinutes))}
+			{@const avgTrackedMinutes = Math.round(totalTrackedMinutes / doneThatData.rows.length)}
+			{@const maxTrackedMinutes = Math.max(...doneThatData.rows.map(d => d.duration || 0))}
 			<div class="mb-4 text-sm text-flexoki-tx-2">
-				<span>Focus total: <b>{formatDuration(totalFocusMinutes)}</b></span>
+				<span>Focus: <b>{formatDecimalHours(totalFocusMinutes)}</b></span>
 				<span class="mx-2">|</span>
-				<span>Daily avg: <b>{formatDuration(avgFocusMinutes)}</b></span>
+				<span>Total: <b>{formatDecimalHours(totalTrackedMinutes)}</b></span>
+				<span class="mx-2">|</span>
+				<span>Daily avg: <b>{formatDecimalHours(avgFocusMinutes)}</b> / {formatDecimalHours(avgTrackedMinutes)}</span>
 			</div>
 
-			<!-- Bar chart of focus hours -->
-			<div class="space-y-1 mb-4">
+			<!-- Bar chart of time tracked -->
+			<div class="space-y-1 mb-4 relative">
 				{#each doneThatData.rows.slice().reverse() as day}
 					{@const focusMins = getFocusMinutes(day)}
-					{@const barWidth = maxFocusMinutes > 0 ? (focusMins / maxFocusMinutes) * 100 : 0}
-					<div class="flex items-center gap-2 text-sm">
+					{@const totalMins = day.duration || 0}
+					{@const totalBarWidth = maxTrackedMinutes > 0 ? (totalMins / maxTrackedMinutes) * 100 : 0}
+					{@const focusBarWidth = maxTrackedMinutes > 0 ? (focusMins / maxTrackedMinutes) * 100 : 0}
+					<div
+						class="flex items-center gap-2 text-sm cursor-pointer group"
+						role="button"
+						tabindex="0"
+						on:mouseenter={(e) => handleDayHover(e, day)}
+						on:mouseleave={handleDayLeave}
+						on:focus={(e) => handleDayHover(e, day)}
+						on:blur={handleDayLeave}
+					>
 						<span class="w-8 text-flexoki-tx-3 text-xs">{getDayName(day.date)}</span>
-						<div class="flex-1 h-4 bg-flexoki-bg-2 border border-flexoki-ui">
+						<div class="flex-1 h-5 bg-flexoki-bg-2 border border-flexoki-ui relative overflow-hidden group-hover:border-flexoki-tx-3 transition-colors">
+							<!-- Total time bar (greyed out background) -->
 							<div
-								class="h-full bg-flexoki-tx-2"
-								style="width: {barWidth}%"
+								class="absolute inset-y-0 left-0 bg-flexoki-ui opacity-50"
+								style="width: {totalBarWidth}%"
+							></div>
+							<!-- Focus time bar (prominent foreground) -->
+							<div
+								class="absolute inset-y-0 left-0 bg-flexoki-tx-2"
+								style="width: {focusBarWidth}%"
 							></div>
 						</div>
-						<span class="w-12 text-right text-xs text-flexoki-tx-3">{formatDuration(focusMins)}</span>
+						<span class="w-24 text-right text-xs text-flexoki-tx-3 whitespace-nowrap">
+							<span class="text-flexoki-tx-2">{formatDecimalHours(focusMins)}</span>
+							<span class="text-flexoki-tx-3">/{formatDecimalHours(totalMins)}</span>
+						</span>
 					</div>
 				{/each}
 			</div>
+
+			<!-- Tooltip -->
+			{#if hoveredDay}
+				<div
+					class="fixed z-50 bg-flexoki-white border border-flexoki-ui shadow-lg p-3 text-sm max-w-xs pointer-events-none"
+					style="left: {tooltipX}px; top: {tooltipY}px; transform: translateY(-100%);"
+				>
+					<div class="font-medium mb-2">{getDayName(hoveredDay.date)} {hoveredDay.date}</div>
+					<div class="text-flexoki-tx-2 mb-2">
+						Total: <b>{formatDuration(hoveredDay.duration || 0)}</b>
+					</div>
+					{#if hoveredDay.categories && hoveredDay.categories.length > 0}
+						<div class="space-y-1 mb-2">
+							{#each hoveredDay.categories as cat}
+								<div class="flex justify-between text-xs">
+									<span class="{cat.name === 'Focus work' ? 'text-flexoki-tx-2 font-medium' : 'text-flexoki-tx-3'}">{cat.name}</span>
+									<span class="text-flexoki-tx-3 ml-2">{formatDuration(cat.minutes)}</span>
+								</div>
+							{/each}
+						</div>
+					{/if}
+					{#if hoveredDay.tasks && hoveredDay.tasks.length > 0}
+						<div class="border-t border-flexoki-ui pt-2 mt-2">
+							<div class="text-xs text-flexoki-tx-3 mb-1">Tasks:</div>
+							<div class="space-y-1">
+								{#each hoveredDay.tasks.slice(0, 5) as task}
+									<div class="flex justify-between text-xs">
+										<span class="text-flexoki-tx-2 truncate max-w-[180px]">{task.title}</span>
+										<span class="text-flexoki-tx-3 ml-2">{formatDuration(task.duration)}</span>
+									</div>
+								{/each}
+								{#if hoveredDay.tasks.length > 5}
+									<div class="text-xs text-flexoki-tx-3">+{hoveredDay.tasks.length - 5} more...</div>
+								{/if}
+							</div>
+						</div>
+					{/if}
+				</div>
+			{/if}
 
 			<!-- Expandable detailed breakdown -->
 			<button
