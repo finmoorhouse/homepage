@@ -866,15 +866,15 @@
 					>
 						<span class="w-8 text-flexoki-tx-3 text-xs">{getDayName(day.date)}</span>
 						<div class="flex-1 h-5 bg-flexoki-bg-2 border border-flexoki-ui relative overflow-hidden group-hover:border-flexoki-tx-3 transition-colors">
-							<!-- Total time bar (greyed out background) -->
+							<!-- Total time bar (subtle background) -->
 							<div
-								class="absolute inset-y-0 left-0 bg-flexoki-ui opacity-50"
+								class="absolute inset-y-0 left-0 bg-flexoki-ui-2 opacity-70"
 								style="width: {totalBarWidth}%"
 							></div>
-							<!-- Focus time bar (prominent foreground) -->
+							<!-- Focus time bar (softer foreground with outline) -->
 							<div
-								class="absolute inset-y-0 left-0 bg-flexoki-tx-2"
-								style="width: {focusBarWidth}%"
+								class="absolute inset-y-0 left-0 bg-flexoki-tx-3"
+								style="width: {focusBarWidth}%; box-shadow: inset 0 0 0 1px var(--tx-2);"
 							></div>
 						</div>
 						<span class="w-24 text-right text-xs text-flexoki-tx-3 whitespace-nowrap">
